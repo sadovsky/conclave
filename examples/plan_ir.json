@@ -1,0 +1,110 @@
+{
+  "conclave_ir_version": "0.1",
+  "module": {
+    "name": "summarize_urls",
+    "source_fingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "types": {},
+  "goals": [],
+  "nodes": [
+    {
+      "node_id": "F1",
+      "kind": "capability_call",
+      "op": { "name": "fetch", "signature": "fetch(Url)->Html" },
+      "inputs": [],
+      "outputs": [{ "port": "out", "type": "Html" }],
+      "attrs": { "determinism_profile": "replayable", "url_index": 0 },
+      "meta": { "origin": "want.url[0]", "span": { "start": 10, "end": 20 } }
+    },
+    {
+      "node_id": "F2",
+      "kind": "capability_call",
+      "op": { "name": "fetch", "signature": "fetch(Url)->Html" },
+      "inputs": [],
+      "outputs": [{ "port": "out", "type": "Html" }],
+      "attrs": { "determinism_profile": "replayable", "url_index": 1 }
+    },
+    {
+      "node_id": "F3",
+      "kind": "capability_call",
+      "op": { "name": "fetch", "signature": "fetch(Url)->Html" },
+      "inputs": [],
+      "outputs": [{ "port": "out", "type": "Html" }],
+      "attrs": { "determinism_profile": "replayable", "url_index": 2 }
+    },
+    {
+      "node_id": "E1",
+      "kind": "intrinsic",
+      "op": { "name": "extract_text", "signature": "extract_text(Html)->String" },
+      "inputs": [{ "port": "in", "type": "Html", "source": { "edge_id": "e_f1_e1" } }],
+      "outputs": [{ "port": "out", "type": "String" }],
+      "attrs": { "determinism_profile": "fixed", "url_index": 0 }
+    },
+    {
+      "node_id": "E2",
+      "kind": "intrinsic",
+      "op": { "name": "extract_text", "signature": "extract_text(Html)->String" },
+      "inputs": [{ "port": "in", "type": "Html", "source": { "edge_id": "e_f2_e2" } }],
+      "outputs": [{ "port": "out", "type": "String" }],
+      "attrs": { "determinism_profile": "fixed", "url_index": 1 }
+    },
+    {
+      "node_id": "E3",
+      "kind": "intrinsic",
+      "op": { "name": "extract_text", "signature": "extract_text(Html)->String" },
+      "inputs": [{ "port": "in", "type": "Html", "source": { "edge_id": "e_f3_e3" } }],
+      "outputs": [{ "port": "out", "type": "String" }],
+      "attrs": { "determinism_profile": "fixed", "url_index": 2 }
+    },
+    {
+      "node_id": "S1",
+      "kind": "intrinsic",
+      "op": { "name": "summarize", "signature": "summarize(String)->Summary" },
+      "inputs": [{ "port": "in", "type": "String", "source": { "edge_id": "e_e1_s1" } }],
+      "outputs": [{ "port": "out", "type": "Summary" }],
+      "attrs": { "determinism_profile": "fixed", "url_index": 0 }
+    },
+    {
+      "node_id": "S2",
+      "kind": "intrinsic",
+      "op": { "name": "summarize", "signature": "summarize(String)->Summary" },
+      "inputs": [{ "port": "in", "type": "String", "source": { "edge_id": "e_e2_s2" } }],
+      "outputs": [{ "port": "out", "type": "Summary" }],
+      "attrs": { "determinism_profile": "fixed", "url_index": 1 }
+    },
+    {
+      "node_id": "S3",
+      "kind": "intrinsic",
+      "op": { "name": "summarize", "signature": "summarize(String)->Summary" },
+      "inputs": [{ "port": "in", "type": "String", "source": { "edge_id": "e_e3_s3" } }],
+      "outputs": [{ "port": "out", "type": "Summary" }],
+      "attrs": { "determinism_profile": "fixed", "url_index": 2 }
+    },
+    {
+      "node_id": "A",
+      "kind": "aggregate",
+      "op": { "name": "assemble_json", "signature": "assemble_json" },
+      "inputs": [
+        { "port": "in", "type": "Summary", "source": { "edge_id": "e_s1_a" } },
+        { "port": "in", "type": "Summary", "source": { "edge_id": "e_s2_a" } },
+        { "port": "in", "type": "Summary", "source": { "edge_id": "e_s3_a" } }
+      ],
+      "outputs": [{ "port": "out", "type": "Json" }],
+      "attrs": { "determinism_profile": "fixed" }
+    }
+  ],
+  "edges": [
+    { "edge_id": "e_f1_e1", "from": { "node_id": "F1", "port": "out" }, "to": { "node_id": "E1", "port": "in" } },
+    { "edge_id": "e_f2_e2", "from": { "node_id": "F2", "port": "out" }, "to": { "node_id": "E2", "port": "in" } },
+    { "edge_id": "e_f3_e3", "from": { "node_id": "F3", "port": "out" }, "to": { "node_id": "E3", "port": "in" } },
+    { "edge_id": "e_e1_s1", "from": { "node_id": "E1", "port": "out" }, "to": { "node_id": "S1", "port": "in" } },
+    { "edge_id": "e_e2_s2", "from": { "node_id": "E2", "port": "out" }, "to": { "node_id": "S2", "port": "in" } },
+    { "edge_id": "e_e3_s3", "from": { "node_id": "E3", "port": "out" }, "to": { "node_id": "S3", "port": "in" } },
+    { "edge_id": "e_s1_a",  "from": { "node_id": "S1", "port": "out" }, "to": { "node_id": "A",  "port": "in" } },
+    { "edge_id": "e_s2_a",  "from": { "node_id": "S2", "port": "out" }, "to": { "node_id": "A",  "port": "in" } },
+    { "edge_id": "e_s3_a",  "from": { "node_id": "S3", "port": "out" }, "to": { "node_id": "A",  "port": "in" } }
+  ],
+  "constraints": {},
+  "subgraphs": [],
+  "exports": { "entry_goal": "gid:entry" }
+}

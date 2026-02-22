@@ -1,0 +1,20 @@
+[package]
+name    = "conclave-cli"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "conclave"
+path = "src/main.rs"
+
+[dependencies]
+serde_json = { workspace = true }
+clap       = { workspace = true }
+thiserror  = { workspace = true }
+anyhow     = { workspace = true }
+conclave-hash     = { path = "../conclave-hash" }
+conclave-ir       = { path = "../conclave-ir" }
+conclave-manifest = { path = "../conclave-manifest" }
+conclave-seal     = { path = "../conclave-seal" }
+conclave-pack     = { path = "../conclave-pack" }
+conclave-runtime  = { path = "../conclave-runtime" }
