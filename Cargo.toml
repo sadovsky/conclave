@@ -9,6 +9,7 @@ members = [
     "crates/conclave-runtime",
     "crates/conclave-pack",
     "crates/conclave-cli",
+    "crates/conclave-cap-fetch",
 ]
 # Workspace listing matches README.md ordering.
 # Development/implementation order (CLAUDE.md §4): hash → ir → manifest → store → pack → runtime → cli

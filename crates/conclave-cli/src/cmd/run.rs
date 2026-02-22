@@ -19,6 +19,10 @@ pub struct RunArgs {
     /// In live mode, capability misses fall back to subprocess invocation.
     #[arg(long, default_value = "sealed_replay")]
     pub mode: String,
+    /// Ordered list of URLs for capability nodes, by url_index (comma-separated).
+    /// e.g. --urls "https://a.com,https://b.com,https://c.com"
+    #[arg(long, value_name = "URLS", value_delimiter = ',')]
+    pub urls: Vec<String>,
 }
 
 pub fn run(args: RunArgs) -> anyhow::Result<()> {
@@ -65,11 +69,8 @@ pub fn run(args: RunArgs) -> anyhow::Result<()> {
         cap_store: Some(&chained as &dyn conclave_store::CapabilityStore),
         bindings: &bundle.manifest.capability_bindings,
         determinism_mode: args.mode.clone(),
-        seed: bundle
-            .manifest
-            .determinism
-            .randomness
-            .seed,
+        seed: bundle.manifest.determinism.randomness.seed,
+        url_inputs: args.urls,
     };
 
     let policy = bundle.manifest.scheduler_policy.clone();

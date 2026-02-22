@@ -54,6 +54,9 @@ pub struct CapabilityDispatcher<'a> {
     /// "live" — try replay first (if replayable), then subprocess.
     pub determinism_mode: String,
     pub seed: u64,
+    /// Ordered list of URLs corresponding to node url_index attributes.
+    /// Index i maps to the URL string for capability nodes with url_index == i.
+    pub url_inputs: Vec<String>,
 }
 
 impl CapabilityDispatcher<'_> {
@@ -61,6 +64,7 @@ impl CapabilityDispatcher<'_> {
         &self,
         node_id: &str,
         cap_signature: &str,
+        url_index: Option<u32>,
         virtual_time: u64,
     ) -> Result<(Value, u64), RuntimeError> {
         let binding = self.bindings.get(cap_signature);
@@ -102,10 +106,19 @@ impl CapabilityDispatcher<'_> {
                     .with_capability(cap_signature)
             })?;
 
+        // Build inputs: inject URL from url_inputs if url_index is provided.
+        let mut inputs: BTreeMap<String, serde_json::Value> = BTreeMap::new();
+        if let Some(idx) = url_index {
+            if let Some(url) = self.url_inputs.get(idx as usize) {
+                inputs.insert("url".into(), serde_json::Value::String(url.clone()));
+            }
+        }
+
         spawn_capability(
             node_id,
             cap_signature,
             &artifact_bytes,
+            &inputs,
             profile,
             self.seed,
             virtual_time,
@@ -118,6 +131,7 @@ fn spawn_capability(
     node_id: &str,
     cap_signature: &str,
     artifact_bytes: &[u8],
+    inputs: &BTreeMap<String, serde_json::Value>,
     determinism_profile: &str,
     seed: u64,
     virtual_time: u64,
@@ -128,7 +142,7 @@ fn spawn_capability(
     // Build the request JSON.
     let request = CapabilityRequest {
         capability: cap_signature.to_string(),
-        inputs: BTreeMap::new(), // v0.2: populate from node inputs
+        inputs: inputs.clone(),
         context: CapabilityContext {
             seed,
             virtual_time,

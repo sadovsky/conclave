@@ -151,6 +151,7 @@ fn make_dispatcher<'a>(
         bindings,
         determinism_mode: "sealed_replay".into(),
         seed: 0,
+        url_inputs: vec![],
     }
 }
 

@@ -177,7 +177,7 @@ impl Scheduler {
 
                 // Resolve the result and duration now (single-threaded simulation).
                 let result: Result<(Value, u64), RuntimeError> = if matches!(ir_node.kind, NodeKind::CapabilityCall) {
-                    dispatcher.dispatch(node_id, cap_sig, clock.now())
+                    dispatcher.dispatch(node_id, cap_sig, ir_node.attrs.url_index, clock.now())
                 } else {
                     let dur = local_duration_for(ir_node);
                     Ok((Value { type_name: "()".into(), data: vec![] }, dur))
