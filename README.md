@@ -262,4 +262,4 @@ See `docs/` for specifications and `blog/` for narrative explanations.
 
 ## License
 
-TBD
+MIT
