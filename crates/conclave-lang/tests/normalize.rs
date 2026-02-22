@@ -14,10 +14,8 @@ fn normalize_version_ok() {
 
 #[test]
 fn normalize_version_wrong() {
-    let src = "version 0.2;\ngoal Foo() -> Json { want { return assemble_json(collected); } }";
     // parse will produce version "0.2", but we haven't declared assemble_json, so let's use a
     // simpler module without goals.
-    let minimal = "version 0.2;";
     // parse will succeed but normalize should reject wrong version
     let m = conclave_lang::ast::Module {
         version: "0.2".into(),
