@@ -4,6 +4,8 @@
 
 Conclave gives AI agents a substrate where they can be *powerful* and *auditable* at the same time. An agent generates a `.conclave` program. That program is lowered to a Plan IR, sealed into a content-addressed artifact, and run by a deterministic scheduler. Same inputs → identical output and execution trace. Every time.
 
+> **Manifesto:** [I Have Built A Small Deterministic Cathedral](blog/00-i-have-built-a-small-deterministic-cathedral.md)
+
 ---
 
 ## The problem it solves
