@@ -101,6 +101,14 @@ The DSL isn't meant to be a "real" programming language.
 
 It's a structured declaration of intent.
 
+And it's written for agents, not humans.
+
+Notice: explicit type declarations. Regex-constrained refinements. Strongly typed signatures with `->`. Curly braces everywhere. Every capability named and declared before use. Every constraint written out literally.
+
+A human would find this tedious. An agent finds it unambiguous. There's no "just figure it out from context." There's no convention over configuration. Every decision is stated. Every boundary is named.
+
+That's by design. The goal is a format that a language model can generate reliably, that a linter can validate mechanically, and that a runtime can enforce without interpretation. Not ergonomic. Not expressive. *Exact.*
+
 You (aka one of your agents) write something like:
 
 ```conclave
