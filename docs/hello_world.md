@@ -6,6 +6,37 @@ This guide walks through every step to write, seal, pack, and run a working Conc
 
 ---
 
+## Try it with Claude Code first
+
+If you have Claude Code and access to this repo, paste this prompt:
+
+```
+You have access to the Conclave repo. Read docs/hello_world.md and docs/AGENT_GUIDE.md.
+Then do the following, exactly as the guide describes:
+
+1. Build the CLI and the conclave-cap-fetch capability binary.
+2. Install the fetch capability and save its hash.
+3. Write hello.conclave (the FetchPages program from hello_world.md) to the repo root.
+4. Lower it with --url-count 2 and save plan_ir.json.
+5. Write manifest.json using the hash from step 2.
+6. Seal, pack, and run the artifact against https://example.com and https://anthropic.com in live mode.
+7. Report the source_hash, ast_hash, and plan_ir_hash printed by `conclave lower`.
+```
+
+Then follow this guide yourself and compare the hashes from Step 3.
+
+### The challenge
+
+**The `plan_ir_hash` you get from `conclave lower` will be identical to what Claude Code reports** — regardless of who ran it, on what machine, or when.
+
+That hash is a SHA256 over the canonical execution graph derived purely from the source text. It is not a function of the build, the machine, the time, or the capability binaries. If you both wrote the same `hello.conclave` and used `--url-count 2`, your hashes match.
+
+This is the thesis of Conclave made concrete: the plan is a commitment. Same source → same hash. Always.
+
+Try it. Post both hashes. See if they match.
+
+---
+
 ## Prerequisites
 
 You need Rust and Cargo. Then build the tools from the repo root:
