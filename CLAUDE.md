@@ -39,9 +39,12 @@ conclave/
 │   ├── conclave-ir/
 │   ├── conclave-manifest/
 │   ├── conclave-seal/
+│   ├── conclave-store/
 │   ├── conclave-runtime/
 │   ├── conclave-pack/
-│   └── conclave-cli/
+│   ├── conclave-lang/
+│   ├── conclave-cli/
+│   └── conclave-cap-fetch/
 
 Do not collapse crate boundaries.
 
@@ -52,9 +55,13 @@ Do not collapse crate boundaries.
 1. conclave-hash
 2. conclave-ir
 3. conclave-manifest
-4. conclave-pack
-5. conclave-runtime
-6. conclave-cli
+4. conclave-seal
+5. conclave-store
+6. conclave-pack
+7. conclave-runtime
+8. conclave-lang
+9. conclave-cli
+10. conclave-cap-fetch (separate capability binary)
 
 Do not begin runtime work before hashing is stable.
 

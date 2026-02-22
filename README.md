@@ -250,6 +250,7 @@ cargo test --workspace
 | 0–5 | Core IR, manifest, seal, pack, runtime, CLI | ✓ Complete |
 | 6 | Capability store, subprocess dispatch, Ed25519 | ✓ Complete |
 | 7 | Source language (`conclave-lang`) | ✓ Complete |
+| 8 | Chained capability inputs, agent-written capabilities | ✓ Complete |
 
 See `docs/` for specifications and `blog/` for narrative explanations.
 
