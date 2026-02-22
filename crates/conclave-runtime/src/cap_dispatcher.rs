@@ -41,6 +41,7 @@ struct CapabilityOutput {
 struct CapabilityErrorResponse {
     error: String,
     #[serde(default)]
+    #[allow(dead_code)]
     details: BTreeMap<String, serde_json::Value>,
 }
 
@@ -104,7 +105,7 @@ impl CapabilityDispatcher<'_> {
         // live mode: invoke subprocess.
         let artifact_bytes = self
             .cap_store
-            .and_then(|s| binding.map(|b| s.get(&b.artifact_hash)).flatten())
+            .and_then(|s| binding.and_then(|b| s.get(&b.artifact_hash)))
             .ok_or_else(|| {
                 RuntimeError::new("ERR_CAPABILITY_MISSING")
                     .with_node(node_id)

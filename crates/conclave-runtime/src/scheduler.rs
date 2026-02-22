@@ -18,7 +18,7 @@ enum NodeState {
     Ready,
     Running { completion_t: u64 },
     Completed,
-    Failed(RuntimeError),
+    Failed,
 }
 
 impl PartialEq for NodeState {
@@ -292,7 +292,7 @@ impl Scheduler {
                     data.state = NodeState::Completed;
                 }
                 Err(e) => {
-                    data.state = NodeState::Failed(e.clone());
+                    data.state = NodeState::Failed;
                     return Err(e);
                 }
             }

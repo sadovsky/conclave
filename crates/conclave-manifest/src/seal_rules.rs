@@ -21,12 +21,12 @@ pub fn validate_seal(manifest: &Manifest, plan_ir: &PlanIr) -> Result<(), SealEr
 
     // Rule 2: all capability_call nodes must have a binding.
     for node in &plan_ir.nodes {
-        if matches!(node.kind, conclave_ir::NodeKind::CapabilityCall) {
-            if !manifest.capability_bindings.contains_key(&node.op.signature) {
-                return Err(SealError::MissingCapabilityBinding(
-                    node.op.signature.clone(),
-                ));
-            }
+        if matches!(node.kind, conclave_ir::NodeKind::CapabilityCall)
+            && !manifest.capability_bindings.contains_key(&node.op.signature)
+        {
+            return Err(SealError::MissingCapabilityBinding(
+                node.op.signature.clone(),
+            ));
         }
     }
 
