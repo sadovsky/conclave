@@ -40,6 +40,8 @@ Every step hashes its output. Every hash is a commitment.
 
 ## Quick start
 
+> **Full walkthrough:** [docs/hello_world.md](docs/hello_world.md) — every command, copy-pasteable, start to finish.
+
 ### Build
 
 ```bash
