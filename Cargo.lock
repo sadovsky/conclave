@@ -184,6 +184,7 @@ dependencies = [
  "clap",
  "conclave-hash",
  "conclave-ir",
+ "conclave-lang",
  "conclave-manifest",
  "conclave-pack",
  "conclave-runtime",
@@ -210,6 +211,17 @@ name = "conclave-ir"
 version = "0.1.0"
 dependencies = [
  "conclave-hash",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "conclave-lang"
+version = "0.1.0"
+dependencies = [
+ "conclave-hash",
+ "conclave-ir",
  "serde",
  "serde_json",
  "thiserror 2.0.18",

@@ -8,6 +8,7 @@ members = [
     "crates/conclave-store",
     "crates/conclave-runtime",
     "crates/conclave-pack",
+    "crates/conclave-lang",
     "crates/conclave-cli",
     "crates/conclave-cap-fetch",
 ]

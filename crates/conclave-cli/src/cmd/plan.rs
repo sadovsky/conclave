@@ -2,19 +2,20 @@ use std::path::PathBuf;
 
 #[derive(clap::Args)]
 pub struct PlanArgs {
-    /// Input Plan IR JSON file (already parsed/normalized; v0.1 has no source compiler).
-    #[arg(value_name = "PLAN_IR_JSON")]
+    /// Input Plan IR JSON file or `.conclave` source file.
+    /// `.conclave` files are lowered automatically; use `conclave lower` for explicit control.
+    #[arg(value_name = "INPUT")]
     pub input: PathBuf,
     /// Output canonical plan_ir.json (default: stdout).
     #[arg(long, short)]
     pub output: Option<PathBuf>,
+    /// URL count for `.conclave` source lowering (ignored for JSON inputs).
+    #[arg(long, value_name = "N", default_value = "1")]
+    pub url_count: usize,
 }
 
 pub fn run(args: PlanArgs) -> anyhow::Result<()> {
-    let raw = std::fs::read_to_string(&args.input)
-        .map_err(|e| anyhow::anyhow!("failed to read {}: {}", args.input.display(), e))?;
-    let ir: conclave_ir::PlanIr = serde_json::from_str(&raw)
-        .map_err(|e| anyhow::anyhow!("failed to parse Plan IR: {e}"))?;
+    let ir = load_plan_ir(&args.input, args.url_count)?;
 
     conclave_ir::validate_plan_ir(&ir)
         .map_err(|e| anyhow::anyhow!("Plan IR validation failed: {e}"))?;
@@ -31,4 +32,24 @@ pub fn run(args: PlanArgs) -> anyhow::Result<()> {
         None => print!("{canonical_str}"),
     }
     Ok(())
+}
+
+/// Load a Plan IR from either a `.conclave` source file or a JSON Plan IR file.
+/// Exported so the `seal` command can also accept `.conclave` files.
+pub fn load_plan_ir(path: &PathBuf, url_count: usize) -> anyhow::Result<conclave_ir::PlanIr> {
+    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+    if ext == "conclave" {
+        let source = std::fs::read_to_string(path)
+            .map_err(|e| anyhow::anyhow!("failed to read {}: {}", path.display(), e))?;
+        let out = conclave_lang::lower(&source, url_count)
+            .map_err(|e| anyhow::anyhow!("lowering failed: {e}"))?;
+        eprintln!("source_hash:  {}", out.source_hash);
+        eprintln!("ast_hash:     {}", out.ast_hash);
+        Ok(out.plan_ir)
+    } else {
+        let raw = std::fs::read_to_string(path)
+            .map_err(|e| anyhow::anyhow!("failed to read {}: {}", path.display(), e))?;
+        serde_json::from_str(&raw)
+            .map_err(|e| anyhow::anyhow!("failed to parse Plan IR JSON: {e}"))
+    }
 }

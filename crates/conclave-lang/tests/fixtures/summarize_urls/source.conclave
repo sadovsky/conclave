@@ -1,0 +1,25 @@
+version 0.1;
+
+type Url = String where re2("^https?://");
+
+capability fetch: fetch(Url) -> Html;
+capability extract_text: extract_text(Html) -> String;
+capability summarize: summarize(String) -> String;
+intrinsic assemble_json: assemble_json(List<String>) -> Json;
+
+goal SummarizeUrls(urls: List<Url>) -> Json {
+  want {
+    map urls as url {
+      let html = fetch(url);
+      let text = extract_text(html);
+      emit summarize(text);
+    }
+    return assemble_json(collected);
+  }
+
+  constraints {
+    determinism.mode == "sealed_replay";
+    rate_limit(fetch) <= 2 req/s;
+    scheduler.max_inflight <= 2;
+  }
+}

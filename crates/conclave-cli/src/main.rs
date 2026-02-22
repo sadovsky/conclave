@@ -15,7 +15,9 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Parse and canonicalize a Plan IR JSON file.
+    /// Lower a `.conclave` source file to Plan IR JSON.
+    Lower(cmd::lower::LowerArgs),
+    /// Parse and canonicalize a Plan IR JSON file (also accepts `.conclave` source).
     Plan(cmd::plan::PlanArgs),
     /// Seal a program: pin capabilities, validate determinism, emit manifest.
     Seal(cmd::seal::SealArgs),
@@ -32,6 +34,7 @@ enum Commands {
 fn main() {
     let cli = Cli::parse();
     let result = match cli.command {
+        Commands::Lower(args) => cmd::lower::run(args),
         Commands::Plan(args) => cmd::plan::run(args),
         Commands::Seal(args) => cmd::seal::run(args),
         Commands::Pack(args) => cmd::pack::run(args),

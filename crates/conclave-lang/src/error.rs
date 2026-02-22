@@ -1,0 +1,35 @@
+/// All errors that can arise during parsing, normalization, and lowering of a
+/// Conclave source file.
+#[derive(Debug, thiserror::Error, PartialEq, Eq)]
+pub enum LangError {
+    #[error("unexpected token at line {line}: expected {expected}, got '{got}'")]
+    UnexpectedToken {
+        expected: String,
+        got: String,
+        line: usize,
+    },
+
+    #[error("unexpected end of file: expected {expected}")]
+    UnexpectedEof { expected: String },
+
+    #[error("duplicate declaration: '{0}'")]
+    DuplicateDeclaration(String),
+
+    #[error("unknown capability or intrinsic: '{0}'")]
+    UnknownCapability(String),
+
+    #[error("version mismatch: expected '{expected}', got '{got}'")]
+    VersionMismatch { expected: String, got: String },
+
+    #[error("shadowed binding: '{0}' is already defined in this scope")]
+    ShadowedBinding(String),
+
+    #[error("undefined binding: '{0}'")]
+    UndefinedBinding(String),
+
+    #[error("no goals declared in module")]
+    NoGoals,
+
+    #[error("lowering requires url_count > 0 for map constructs")]
+    MapRequiresUrlCount,
+}
