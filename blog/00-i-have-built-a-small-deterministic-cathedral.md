@@ -242,9 +242,10 @@ Run it today.
 Run it next year.
 Run it somewhere else.
 
-It doesn't ask the internet who it feels like being today.
+It doesn't query the cloud for instructions.
+It doesn't scrape a live feed for context.
 
-It already knows.
+Run it anywhere and it stands on its own.
 
 ---
 
