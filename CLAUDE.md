@@ -163,7 +163,18 @@ CI must fail on nondeterministic drift.
 
 ---
 
-## 11. Philosophy
+## 11. Writing and Running Programs
+
+v0.1 is complete. To write and execute a Conclave program as an agent:
+
+- Read **`docs/AGENT_GUIDE.md`** — full syntax reference, manifest format, and CLI walkthrough
+- Read **`docs/hello_world.md`** — complete copy-pasteable example from source to running artifact
+
+These documents are the authoritative reference for any agent tasked with generating or executing Conclave programs.
+
+---
+
+## 12. Philosophy
 
 Conclave is not about maximizing performance.
 

@@ -8,7 +8,20 @@ This guide walks through every step to write, seal, pack, and run a working Conc
 
 ## Try it with Claude Code first
 
-If you have Claude Code and access to this repo, paste this prompt:
+There are two ways to do this. One requires more trust in the docs.
+
+### The short prompt *(cross fingers)*
+
+```
+Write and run a Conclave program in this repo that fetches
+https://example.com and https://anthropic.com in parallel and collects
+their HTML. Run the full pipeline: lower, seal, pack, run in live mode.
+Report the source_hash, ast_hash, and plan_ir_hash from `conclave lower`.
+```
+
+This works if Claude Code reads `CLAUDE.md` (it always does) and follows the pointer to `docs/AGENT_GUIDE.md`. No hand-holding. Either the docs are good enough or they aren't.
+
+### The explicit prompt *(guaranteed to work)*
 
 ```
 You have access to the Conclave repo. Read docs/hello_world.md and docs/AGENT_GUIDE.md.
