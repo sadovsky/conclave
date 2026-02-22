@@ -6,8 +6,8 @@ fn minimal_ir() -> PlanIr {
         conclave_ir_version: "0.1".into(),
         module: Module {
             name: "test_module".into(),
-            source_fingerprint: "sha256:0000000000000000000000000000000000000000000000000000000000000000"
-                .into(),
+            source_fingerprint:
+                "sha256:0000000000000000000000000000000000000000000000000000000000000000".into(),
         },
         types: BTreeMap::new(),
         goals: vec![],
@@ -51,7 +51,10 @@ fn plan_ir_hash_ignores_meta_field() {
     ir_with_meta.nodes.push(Node {
         node_id: "nid:n1".into(),
         kind: NodeKind::Intrinsic,
-        op: Op { name: "noop".into(), signature: "noop()->()".into() },
+        op: Op {
+            name: "noop".into(),
+            signature: "noop()->()".into(),
+        },
         inputs: vec![],
         outputs: vec![],
         attrs: NodeAttrs {
@@ -67,7 +70,10 @@ fn plan_ir_hash_ignores_meta_field() {
     ir_without_meta.nodes.push(Node {
         node_id: "nid:n1".into(),
         kind: NodeKind::Intrinsic,
-        op: Op { name: "noop".into(), signature: "noop()->()".into() },
+        op: Op {
+            name: "noop".into(),
+            signature: "noop()->()".into(),
+        },
         inputs: vec![],
         outputs: vec![],
         attrs: NodeAttrs {
@@ -91,7 +97,10 @@ fn node_id_is_deterministic() {
     let node = Node {
         node_id: String::new(),
         kind: NodeKind::CapabilityCall,
-        op: Op { name: "fetch".into(), signature: "fetch(Url)->Html".into() },
+        op: Op {
+            name: "fetch".into(),
+            signature: "fetch(Url)->Html".into(),
+        },
         inputs: vec![InputPort {
             port: "in.url".into(),
             type_name: "Url".into(),
@@ -119,8 +128,14 @@ fn node_id_is_deterministic() {
 fn edge_id_is_deterministic() {
     let edge = Edge {
         edge_id: String::new(),
-        from: EdgeEndpoint { node_id: "nid:a".into(), port: "out".into() },
-        to: EdgeEndpoint { node_id: "nid:b".into(), port: "in".into() },
+        from: EdgeEndpoint {
+            node_id: "nid:a".into(),
+            port: "out".into(),
+        },
+        to: EdgeEndpoint {
+            node_id: "nid:b".into(),
+            port: "in".into(),
+        },
     };
     let id1 = compute_edge_id(&edge);
     let id2 = compute_edge_id(&edge);

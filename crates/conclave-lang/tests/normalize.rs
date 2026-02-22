@@ -67,9 +67,15 @@ goal G(x: String) -> Json { want { return assemble_json(collected); } }
 
 #[test]
 fn normalize_signature_strips_whitespace() {
-    assert_eq!(normalize_signature("fetch( Url ) -> Html"), "fetch(Url)->Html");
+    assert_eq!(
+        normalize_signature("fetch( Url ) -> Html"),
+        "fetch(Url)->Html"
+    );
     assert_eq!(normalize_signature("fetch(Url)->Html"), "fetch(Url)->Html");
-    assert_eq!(normalize_signature("assemble_json(List<String>) -> Json"), "assemble_json(List<String>)->Json");
+    assert_eq!(
+        normalize_signature("assemble_json(List<String>) -> Json"),
+        "assemble_json(List<String>)->Json"
+    );
 }
 
 #[test]

@@ -23,8 +23,8 @@ pub fn verify_capability(
     signature_base64: &str,
 ) -> Result<(), VerifyError> {
     // Decode public key.
-    let pk_bytes = hex::decode(public_key_hex)
-        .map_err(|e| VerifyError::InvalidPublicKey(e.to_string()))?;
+    let pk_bytes =
+        hex::decode(public_key_hex).map_err(|e| VerifyError::InvalidPublicKey(e.to_string()))?;
     let pk_arr: [u8; 32] = pk_bytes
         .try_into()
         .map_err(|_| VerifyError::InvalidPublicKey("expected 32 bytes".into()))?;

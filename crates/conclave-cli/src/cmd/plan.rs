@@ -49,7 +49,6 @@ pub fn load_plan_ir(path: &PathBuf, url_count: usize) -> anyhow::Result<conclave
     } else {
         let raw = std::fs::read_to_string(path)
             .map_err(|e| anyhow::anyhow!("failed to read {}: {}", path.display(), e))?;
-        serde_json::from_str(&raw)
-            .map_err(|e| anyhow::anyhow!("failed to parse Plan IR JSON: {e}"))
+        serde_json::from_str(&raw).map_err(|e| anyhow::anyhow!("failed to parse Plan IR JSON: {e}"))
     }
 }

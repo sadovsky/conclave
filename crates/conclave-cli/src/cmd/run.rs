@@ -37,9 +37,8 @@ pub fn run(args: RunArgs) -> anyhow::Result<()> {
     if let Some(replay_path) = &args.replay {
         let raw = std::fs::read_to_string(replay_path)
             .map_err(|e| anyhow::anyhow!("failed to read replay store: {e}"))?;
-        let map: std::collections::BTreeMap<String, serde_json::Value> =
-            serde_json::from_str(&raw)
-                .map_err(|e| anyhow::anyhow!("failed to parse replay store: {e}"))?;
+        let map: std::collections::BTreeMap<String, serde_json::Value> = serde_json::from_str(&raw)
+            .map_err(|e| anyhow::anyhow!("failed to parse replay store: {e}"))?;
         for (key, entry) in &map {
             let parts: Vec<&str> = key.splitn(2, "::").collect();
             if parts.len() != 2 {
@@ -54,9 +53,8 @@ pub fn run(args: RunArgs) -> anyhow::Result<()> {
     }
 
     // Build capability store (filesystem + embedded chain).
-    let embedded =
-        conclave_store::EmbeddedStore::from_bundle(&bundle)
-            .map_err(|e| anyhow::anyhow!("failed to read embedded artifacts: {e}"))?;
+    let embedded = conclave_store::EmbeddedStore::from_bundle(&bundle)
+        .map_err(|e| anyhow::anyhow!("failed to read embedded artifacts: {e}"))?;
 
     let store_dir = args
         .cap_store

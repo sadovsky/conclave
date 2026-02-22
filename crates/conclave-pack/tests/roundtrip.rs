@@ -17,7 +17,9 @@ fn fixture_bundle() -> Bundle {
         edges: vec![],
         constraints: BTreeMap::new(),
         subgraphs: vec![],
-        exports: Exports { entry_goal: "gid:entry".into() },
+        exports: Exports {
+            entry_goal: "gid:entry".into(),
+        },
     };
 
     let manifest = Manifest {
@@ -32,12 +34,12 @@ fn fixture_bundle() -> Bundle {
             arch: "aarch64".into(),
         },
         toolchain: Toolchain {
-            lowerer_hash:
-                "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd".into(),
-            runtime_hash:
-                "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee".into(),
-            stdlib_hash:
-                "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff".into(),
+            lowerer_hash: "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                .into(),
+            runtime_hash: "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+                .into(),
+            stdlib_hash: "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+                .into(),
         },
         capability_bindings: BTreeMap::new(),
         scheduler_policy: SchedulerPolicy {
@@ -45,12 +47,19 @@ fn fixture_bundle() -> Bundle {
             max_inflight: 1,
             ready_queue_order: vec![],
             node_kind_order: vec![],
-            tie_breaker: TieBreaker { kind: "stable".into(), seed: 0 },
+            tie_breaker: TieBreaker {
+                kind: "stable".into(),
+                seed: 0,
+            },
         },
         determinism: Determinism {
             mode: "sealed_replay".into(),
             clock: "virtual".into(),
-            randomness: RandomnessPolicy { allowed: false, seed: 0, source: "none".into() },
+            randomness: RandomnessPolicy {
+                allowed: false,
+                seed: 0,
+                source: "none".into(),
+            },
             float: "strict".into(),
             io_policy: IoPolicy {
                 network: NetworkPolicy::Deny,
@@ -88,13 +97,14 @@ fn pack_unpack_roundtrip() {
     let runtime_bytes = b"fake_runtime_binary".to_vec();
     let bundle = fixture_bundle();
 
-    let output = pack(PackInput { runtime_bytes, bundle }).unwrap();
+    let output = pack(PackInput {
+        runtime_bytes,
+        bundle,
+    })
+    .unwrap();
     let recovered = unpack(&output.artifact_bytes).unwrap();
 
-    assert_eq!(
-        recovered.manifest.program.name,
-        "pack_test"
-    );
+    assert_eq!(recovered.manifest.program.name, "pack_test");
     assert_eq!(recovered.bundle_version, "0.1");
     assert_eq!(
         recovered.bundle_hashes.bundle_hash,
@@ -134,11 +144,17 @@ fn unpack_rejects_bad_magic() {
     let bundle_len = 11u64.to_le_bytes();
     artifact.extend_from_slice(&bundle_len);
     artifact.extend_from_slice(b"BADMAGIC");
-    assert!(matches!(unpack(&artifact), Err(PackError::ArtifactBadMagic)));
+    assert!(matches!(
+        unpack(&artifact),
+        Err(PackError::ArtifactBadMagic)
+    ));
 }
 
 #[test]
 fn unpack_rejects_too_short() {
     let artifact = b"short".to_vec();
-    assert!(matches!(unpack(&artifact), Err(PackError::ArtifactTruncated)));
+    assert!(matches!(
+        unpack(&artifact),
+        Err(PackError::ArtifactTruncated)
+    ));
 }

@@ -16,11 +16,26 @@ pub fn run(args: InspectArgs) -> anyhow::Result<()> {
 
     println!("bundle_version:          {}", bundle.bundle_version);
     println!("program:                 {}", bundle.manifest.program.name);
-    println!("plan_ir_hash:            {}", bundle.bundle_hashes.plan_ir_hash);
-    println!("canonical_manifest_hash: {}", bundle.bundle_hashes.canonical_manifest_hash);
-    println!("bundle_hash:             {}", bundle.bundle_hashes.bundle_hash);
-    println!("determinism.mode:        {}", bundle.manifest.determinism.mode);
-    println!("determinism.clock:       {}", bundle.manifest.determinism.clock);
+    println!(
+        "plan_ir_hash:            {}",
+        bundle.bundle_hashes.plan_ir_hash
+    );
+    println!(
+        "canonical_manifest_hash: {}",
+        bundle.bundle_hashes.canonical_manifest_hash
+    );
+    println!(
+        "bundle_hash:             {}",
+        bundle.bundle_hashes.bundle_hash
+    );
+    println!(
+        "determinism.mode:        {}",
+        bundle.manifest.determinism.mode
+    );
+    println!(
+        "determinism.clock:       {}",
+        bundle.manifest.determinism.clock
+    );
     println!("capability_bindings:");
     for (sig, binding) in &bundle.manifest.capability_bindings {
         println!("  {sig}");

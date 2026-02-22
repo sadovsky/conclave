@@ -17,7 +17,9 @@ fn fixture_ir() -> PlanIr {
         edges: vec![],
         constraints: BTreeMap::new(),
         subgraphs: vec![],
-        exports: Exports { entry_goal: "gid:entry".into() },
+        exports: Exports {
+            entry_goal: "gid:entry".into(),
+        },
     }
 }
 
@@ -34,12 +36,12 @@ fn fixture_manifest_template(plan_ir_hash: &str) -> Manifest {
             arch: "aarch64".into(),
         },
         toolchain: Toolchain {
-            lowerer_hash:
-                "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd".into(),
-            runtime_hash:
-                "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee".into(),
-            stdlib_hash:
-                "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff".into(),
+            lowerer_hash: "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                .into(),
+            runtime_hash: "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+                .into(),
+            stdlib_hash: "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+                .into(),
         },
         capability_bindings: BTreeMap::new(),
         scheduler_policy: SchedulerPolicy {
@@ -47,12 +49,19 @@ fn fixture_manifest_template(plan_ir_hash: &str) -> Manifest {
             max_inflight: 1,
             ready_queue_order: vec![],
             node_kind_order: vec![],
-            tie_breaker: TieBreaker { kind: "stable".into(), seed: 0 },
+            tie_breaker: TieBreaker {
+                kind: "stable".into(),
+                seed: 0,
+            },
         },
         determinism: Determinism {
             mode: "sealed_replay".into(),
             clock: "virtual".into(),
-            randomness: RandomnessPolicy { allowed: false, seed: 0, source: "none".into() },
+            randomness: RandomnessPolicy {
+                allowed: false,
+                seed: 0,
+                source: "none".into(),
+            },
             float: "strict".into(),
             io_policy: IoPolicy {
                 network: NetworkPolicy::Deny,
@@ -77,7 +86,11 @@ fn fixture_manifest_template(plan_ir_hash: &str) -> Manifest {
 fn seal_fills_in_empty_plan_ir_hash() {
     let ir = fixture_ir();
     let manifest = fixture_manifest_template("");
-    let output = seal(SealInput { plan_ir: ir, manifest }).unwrap();
+    let output = seal(SealInput {
+        plan_ir: ir,
+        manifest,
+    })
+    .unwrap();
     assert!(output.manifest.program.plan_ir_hash.starts_with("sha256:"));
     assert_eq!(
         output.manifest.program.plan_ir_hash,
@@ -118,7 +131,10 @@ fn seal_rejects_mismatched_plan_ir_hash() {
     let manifest = fixture_manifest_template(
         "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     );
-    let result = seal(SealInput { plan_ir: ir, manifest });
+    let result = seal(SealInput {
+        plan_ir: ir,
+        manifest,
+    });
     assert!(matches!(
         result,
         Err(conclave_manifest::SealError::PlanIrHashMismatch { .. })
@@ -131,6 +147,9 @@ fn seal_accepts_correct_pre_set_plan_ir_hash() {
     // Pre-compute the correct hash.
     let correct_hash = conclave_ir::compute_plan_ir_hash(&ir).to_string();
     let manifest = fixture_manifest_template(&correct_hash);
-    let result = seal(SealInput { plan_ir: ir, manifest });
+    let result = seal(SealInput {
+        plan_ir: ir,
+        manifest,
+    });
     assert!(result.is_ok());
 }

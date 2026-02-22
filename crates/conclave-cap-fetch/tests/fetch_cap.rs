@@ -45,31 +45,39 @@ fn fetch_cap_returns_html_body() {
     let handle = std::thread::spawn(move || {
         let req = server.recv().unwrap();
         let body = "<html><body>hello from conclave</body></html>";
-        let response = tiny_http::Response::from_string(body).with_header(
-            tiny_http::Header::from_bytes("Content-Type", "text/html").unwrap(),
-        );
+        let response = tiny_http::Response::from_string(body)
+            .with_header(tiny_http::Header::from_bytes("Content-Type", "text/html").unwrap());
         req.respond(response).unwrap();
     });
 
     let output = spawn_cap(&make_request(&url));
     handle.join().unwrap();
 
-    assert!(output.status.success(), "binary exited non-zero: {:?}", output.status);
+    assert!(
+        output.status.success(),
+        "binary exited non-zero: {:?}",
+        output.status
+    );
 
-    let resp: serde_json::Value = serde_json::from_slice(&output.stdout)
-        .expect("stdout should be valid JSON");
+    let resp: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("stdout should be valid JSON");
 
-    let data_b64 = resp["output"]["data_b64"].as_str().expect("output.data_b64 must be present");
-    let body = base64::engine::general_purpose::STANDARD.decode(data_b64).unwrap();
+    let data_b64 = resp["output"]["data_b64"]
+        .as_str()
+        .expect("output.data_b64 must be present");
+    let body = base64::engine::general_purpose::STANDARD
+        .decode(data_b64)
+        .unwrap();
     assert_eq!(
-        body,
-        b"<html><body>hello from conclave</body></html>",
+        body, b"<html><body>hello from conclave</body></html>",
         "decoded body must match server response"
     );
 
     assert_eq!(resp["output"]["type"], "Html");
 
-    let duration_ms = resp["duration_ms"].as_u64().expect("duration_ms must be present");
+    let duration_ms = resp["duration_ms"]
+        .as_u64()
+        .expect("duration_ms must be present");
     assert!(duration_ms < 5_000, "unreasonably slow: {duration_ms}ms");
 }
 
@@ -87,7 +95,8 @@ fn fetch_cap_is_byte_stable_for_same_content() {
     let handle = std::thread::spawn(move || {
         for _ in 0..2 {
             let req = server.recv().unwrap();
-            req.respond(tiny_http::Response::from_string("<html>stable</html>")).unwrap();
+            req.respond(tiny_http::Response::from_string("<html>stable</html>"))
+                .unwrap();
         }
     });
 
@@ -119,10 +128,13 @@ fn fetch_cap_errors_on_missing_url() {
 
     let output = spawn_cap(&request);
 
-    assert!(!output.status.success(), "binary should exit non-zero for missing url");
+    assert!(
+        !output.status.success(),
+        "binary should exit non-zero for missing url"
+    );
 
-    let resp: serde_json::Value = serde_json::from_slice(&output.stdout)
-        .expect("stdout should contain JSON error");
+    let resp: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("stdout should contain JSON error");
     assert_eq!(resp["error"], "ERR_MISSING_URL");
 }
 
@@ -134,10 +146,13 @@ fn fetch_cap_errors_on_missing_url() {
 fn fetch_cap_errors_on_invalid_json() {
     let output = spawn_cap("not json at all");
 
-    assert!(!output.status.success(), "binary should exit non-zero for invalid JSON");
+    assert!(
+        !output.status.success(),
+        "binary should exit non-zero for invalid JSON"
+    );
 
-    let resp: serde_json::Value = serde_json::from_slice(&output.stdout)
-        .expect("stdout should contain JSON error");
+    let resp: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("stdout should contain JSON error");
     assert_eq!(resp["error"], "ERR_INVALID_REQUEST");
 }
 
@@ -150,10 +165,16 @@ fn fetch_cap_errors_on_unreachable_host() {
     // Port 1 is reliably unreachable on loopback.
     let output = spawn_cap(&make_request("http://127.0.0.1:1/"));
 
-    assert!(!output.status.success(), "binary should exit non-zero for unreachable host");
+    assert!(
+        !output.status.success(),
+        "binary should exit non-zero for unreachable host"
+    );
 
-    let resp: serde_json::Value = serde_json::from_slice(&output.stdout)
-        .expect("stdout should contain JSON error");
+    let resp: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("stdout should contain JSON error");
     assert_eq!(resp["error"], "ERR_FETCH_FAILED");
-    assert!(resp["details"]["url"].as_str().is_some(), "details.url should be present");
+    assert!(
+        resp["details"]["url"].as_str().is_some(),
+        "details.url should be present"
+    );
 }

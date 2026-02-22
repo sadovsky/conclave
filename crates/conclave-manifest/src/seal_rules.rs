@@ -16,13 +16,14 @@ pub fn validate_seal(manifest: &Manifest, plan_ir: &PlanIr) -> Result<(), SealEr
     if manifest.program.plan_ir_hash.is_empty() {
         return Err(SealError::MissingPlanIrHash);
     }
-    Hash::parse(&manifest.program.plan_ir_hash)
-        .map_err(|_| SealError::MissingPlanIrHash)?;
+    Hash::parse(&manifest.program.plan_ir_hash).map_err(|_| SealError::MissingPlanIrHash)?;
 
     // Rule 2: all capability_call nodes must have a binding.
     for node in &plan_ir.nodes {
         if matches!(node.kind, conclave_ir::NodeKind::CapabilityCall)
-            && !manifest.capability_bindings.contains_key(&node.op.signature)
+            && !manifest
+                .capability_bindings
+                .contains_key(&node.op.signature)
         {
             return Err(SealError::MissingCapabilityBinding(
                 node.op.signature.clone(),

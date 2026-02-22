@@ -27,13 +27,26 @@ fn build_summarize_plan_ir() -> PlanIr {
     let summarize_sig = "summarize(String)->Summary";
     let assemble_sig = "assemble_json";
 
-    fn make_node(id: &str, kind: NodeKind, op_name: &str, sig: &str, url_idx: Option<u32>, inputs: Vec<InputPort>) -> Node {
+    fn make_node(
+        id: &str,
+        kind: NodeKind,
+        op_name: &str,
+        sig: &str,
+        url_idx: Option<u32>,
+        inputs: Vec<InputPort>,
+    ) -> Node {
         Node {
             node_id: id.into(),
             kind,
-            op: Op { name: op_name.into(), signature: sig.into() },
+            op: Op {
+                name: op_name.into(),
+                signature: sig.into(),
+            },
             inputs,
-            outputs: vec![OutputPort { port: "out".into(), type_name: "Any".into() }],
+            outputs: vec![OutputPort {
+                port: "out".into(),
+                type_name: "Any".into(),
+            }],
             attrs: NodeAttrs {
                 determinism_profile: DeterminismProfile::Fixed,
                 cost_hints: None,
@@ -47,8 +60,14 @@ fn build_summarize_plan_ir() -> PlanIr {
     fn edge(id: &str, from_node: &str, to_node: &str) -> Edge {
         Edge {
             edge_id: id.into(),
-            from: EdgeEndpoint { node_id: from_node.into(), port: "out".into() },
-            to: EdgeEndpoint { node_id: to_node.into(), port: "in".into() },
+            from: EdgeEndpoint {
+                node_id: from_node.into(),
+                port: "out".into(),
+            },
+            to: EdgeEndpoint {
+                node_id: to_node.into(),
+                port: "in".into(),
+            },
         }
     }
 
@@ -56,29 +75,101 @@ fn build_summarize_plan_ir() -> PlanIr {
         InputPort {
             port: "in".into(),
             type_name: "Any".into(),
-            source: Some(EdgeRef { edge_id: edge_id.into() }),
+            source: Some(EdgeRef {
+                edge_id: edge_id.into(),
+            }),
         }
     }
 
     let nodes = vec![
         // Fetch nodes
-        make_node("F1", NodeKind::CapabilityCall, "fetch", fetch_sig, Some(0), vec![]),
-        make_node("F2", NodeKind::CapabilityCall, "fetch", fetch_sig, Some(1), vec![]),
-        make_node("F3", NodeKind::CapabilityCall, "fetch", fetch_sig, Some(2), vec![]),
+        make_node(
+            "F1",
+            NodeKind::CapabilityCall,
+            "fetch",
+            fetch_sig,
+            Some(0),
+            vec![],
+        ),
+        make_node(
+            "F2",
+            NodeKind::CapabilityCall,
+            "fetch",
+            fetch_sig,
+            Some(1),
+            vec![],
+        ),
+        make_node(
+            "F3",
+            NodeKind::CapabilityCall,
+            "fetch",
+            fetch_sig,
+            Some(2),
+            vec![],
+        ),
         // Extract nodes
-        make_node("E1", NodeKind::Intrinsic, "extract_text", extract_sig, Some(0), vec![dep_input("e_f1_e1")]),
-        make_node("E2", NodeKind::Intrinsic, "extract_text", extract_sig, Some(1), vec![dep_input("e_f2_e2")]),
-        make_node("E3", NodeKind::Intrinsic, "extract_text", extract_sig, Some(2), vec![dep_input("e_f3_e3")]),
+        make_node(
+            "E1",
+            NodeKind::Intrinsic,
+            "extract_text",
+            extract_sig,
+            Some(0),
+            vec![dep_input("e_f1_e1")],
+        ),
+        make_node(
+            "E2",
+            NodeKind::Intrinsic,
+            "extract_text",
+            extract_sig,
+            Some(1),
+            vec![dep_input("e_f2_e2")],
+        ),
+        make_node(
+            "E3",
+            NodeKind::Intrinsic,
+            "extract_text",
+            extract_sig,
+            Some(2),
+            vec![dep_input("e_f3_e3")],
+        ),
         // Summarize nodes
-        make_node("S1", NodeKind::Intrinsic, "summarize", summarize_sig, Some(0), vec![dep_input("e_e1_s1")]),
-        make_node("S2", NodeKind::Intrinsic, "summarize", summarize_sig, Some(1), vec![dep_input("e_e2_s2")]),
-        make_node("S3", NodeKind::Intrinsic, "summarize", summarize_sig, Some(2), vec![dep_input("e_e3_s3")]),
+        make_node(
+            "S1",
+            NodeKind::Intrinsic,
+            "summarize",
+            summarize_sig,
+            Some(0),
+            vec![dep_input("e_e1_s1")],
+        ),
+        make_node(
+            "S2",
+            NodeKind::Intrinsic,
+            "summarize",
+            summarize_sig,
+            Some(1),
+            vec![dep_input("e_e2_s2")],
+        ),
+        make_node(
+            "S3",
+            NodeKind::Intrinsic,
+            "summarize",
+            summarize_sig,
+            Some(2),
+            vec![dep_input("e_e3_s3")],
+        ),
         // Assemble node
-        make_node("A", NodeKind::Aggregate, "assemble_json", assemble_sig, None, vec![
-            dep_input("e_s1_a"),
-            dep_input("e_s2_a"),
-            dep_input("e_s3_a"),
-        ]),
+        make_node(
+            "A",
+            NodeKind::Aggregate,
+            "assemble_json",
+            assemble_sig,
+            None,
+            vec![
+                dep_input("e_s1_a"),
+                dep_input("e_s2_a"),
+                dep_input("e_s3_a"),
+            ],
+        ),
     ];
 
     let edges = vec![
@@ -106,7 +197,9 @@ fn build_summarize_plan_ir() -> PlanIr {
         edges,
         constraints: BTreeMap::new(),
         subgraphs: vec![],
-        exports: Exports { entry_goal: "gid:entry".into() },
+        exports: Exports {
+            entry_goal: "gid:entry".into(),
+        },
     }
 }
 
@@ -115,8 +208,16 @@ fn build_scheduler_policy() -> SchedulerPolicy {
         strategy: "bounded_parallel_map".into(),
         max_inflight: 2,
         ready_queue_order: vec!["url_index".into(), "node_kind".into(), "node_id".into()],
-        node_kind_order: vec!["FETCH".into(), "EXTRACT".into(), "SUMMARIZE".into(), "ASSEMBLE".into()],
-        tie_breaker: TieBreaker { kind: "stable".into(), seed: 0 },
+        node_kind_order: vec![
+            "FETCH".into(),
+            "EXTRACT".into(),
+            "SUMMARIZE".into(),
+            "ASSEMBLE".into(),
+        ],
+        tie_breaker: TieBreaker {
+            kind: "stable".into(),
+            seed: 0,
+        },
     }
 }
 
@@ -222,12 +323,11 @@ fn conformance_replay_miss_produces_deterministic_error() {
 
     match result {
         Err(e) => {
-            assert_eq!(e.code, "ERR_REPLAY_MISS", "error code must be ERR_REPLAY_MISS");
             assert_eq!(
-                e.node_id.as_deref(),
-                Some("F2"),
-                "error node_id must be F2"
+                e.code, "ERR_REPLAY_MISS",
+                "error code must be ERR_REPLAY_MISS"
             );
+            assert_eq!(e.node_id.as_deref(), Some("F2"), "error node_id must be F2");
         }
         Ok(_) => panic!("expected ERR_REPLAY_MISS but run succeeded"),
     }
@@ -250,8 +350,16 @@ fn trace_is_deterministic() {
     let mut t2 = TraceEmitter::new();
     let _ = s2.run(&plan_ir, &d2, &mut t2).unwrap();
 
-    assert_eq!(t1.events(), t2.events(), "trace must be identical across runs");
-    assert_eq!(t1.trace_hash(), t2.trace_hash(), "trace_hash must be identical");
+    assert_eq!(
+        t1.events(),
+        t2.events(),
+        "trace must be identical across runs"
+    );
+    assert_eq!(
+        t1.trace_hash(),
+        t2.trace_hash(),
+        "trace_hash must be identical"
+    );
 }
 
 #[test]

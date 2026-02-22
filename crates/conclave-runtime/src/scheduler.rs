@@ -80,7 +80,11 @@ impl Scheduler {
             .map(|n| {
                 (
                     n.node_id.clone(),
-                    NodeData { state: NodeState::Pending, output: None, pending_result: None },
+                    NodeData {
+                        state: NodeState::Pending,
+                        output: None,
+                        pending_result: None,
+                    },
                 )
             })
             .collect();
@@ -107,8 +111,11 @@ impl Scheduler {
         }
 
         // Lookup map for IR nodes by id.
-        let node_lookup: BTreeMap<&str, &Node> =
-            plan_ir.nodes.iter().map(|n| (n.node_id.as_str(), n)).collect();
+        let node_lookup: BTreeMap<&str, &Node> = plan_ir
+            .nodes
+            .iter()
+            .map(|n| (n.node_id.as_str(), n))
+            .collect();
 
         // Main scheduler loop.
         loop {
@@ -146,10 +153,14 @@ impl Scheduler {
                 let nb = node_lookup[b.as_str()];
                 let ua = na.attrs.url_index.unwrap_or(u32::MAX);
                 let ub = nb.attrs.url_index.unwrap_or(u32::MAX);
-                if ua != ub { return ua.cmp(&ub); }
+                if ua != ub {
+                    return ua.cmp(&ub);
+                }
                 let ka = node_kind_priority(na, &kind_priority);
                 let kb = node_kind_priority(nb, &kind_priority);
-                if ka != kb { return ka.cmp(&kb); }
+                if ka != kb {
+                    return ka.cmp(&kb);
+                }
                 a.cmp(b)
             });
 
@@ -194,7 +205,9 @@ impl Scheduler {
                                     if let Some(upstream_output) = &upstream_data.output {
                                         // Use the lowercase type name as the input key.
                                         let key = input_port.type_name.to_lowercase();
-                                        let value_str = String::from_utf8_lossy(&upstream_output.data).to_string();
+                                        let value_str =
+                                            String::from_utf8_lossy(&upstream_output.data)
+                                                .to_string();
                                         extras.insert(key, serde_json::Value::String(value_str));
                                     }
                                 }
@@ -207,12 +220,25 @@ impl Scheduler {
                 };
 
                 // Resolve the result and duration now (single-threaded simulation).
-                let result: Result<(Value, u64), RuntimeError> = if matches!(ir_node.kind, NodeKind::CapabilityCall) {
-                    dispatcher.dispatch(node_id, cap_sig, ir_node.attrs.url_index, clock.now(), extra_inputs)
-                } else {
-                    let dur = local_duration_for(ir_node);
-                    Ok((Value { type_name: "()".into(), data: vec![] }, dur))
-                };
+                let result: Result<(Value, u64), RuntimeError> =
+                    if matches!(ir_node.kind, NodeKind::CapabilityCall) {
+                        dispatcher.dispatch(
+                            node_id,
+                            cap_sig,
+                            ir_node.attrs.url_index,
+                            clock.now(),
+                            extra_inputs,
+                        )
+                    } else {
+                        let dur = local_duration_for(ir_node);
+                        Ok((
+                            Value {
+                                type_name: "()".into(),
+                                data: vec![],
+                            },
+                            dur,
+                        ))
+                    };
 
                 let completion_t = match &result {
                     Ok((_, dur)) => clock.now() + dur,
@@ -270,10 +296,14 @@ impl Scheduler {
                 let nb = node_lookup[b];
                 let ua = na.attrs.url_index.unwrap_or(u32::MAX);
                 let ub = nb.attrs.url_index.unwrap_or(u32::MAX);
-                if ua != ub { return ua.cmp(&ub); }
+                if ua != ub {
+                    return ua.cmp(&ub);
+                }
                 let ka = node_kind_priority(na, &kind_priority);
                 let kb = node_kind_priority(nb, &kind_priority);
-                if ka != kb { return ka.cmp(&kb); }
+                if ka != kb {
+                    return ka.cmp(&kb);
+                }
                 a.cmp(b)
             });
             let complete_node_id = earliest[0].to_string();
@@ -283,7 +313,10 @@ impl Scheduler {
 
             let data = nodes.get_mut(&complete_node_id).unwrap();
             let result = data.pending_result.take().unwrap_or(Ok((
-                Value { type_name: "()".into(), data: vec![] },
+                Value {
+                    type_name: "()".into(),
+                    data: vec![],
+                },
                 0,
             )));
             match result {

@@ -25,7 +25,11 @@ impl VirtualClock {
     ///
     /// Panics if `t` is in the past — virtual time must never go backwards.
     pub fn advance_to(&mut self, t: u64) {
-        assert!(t >= self.t, "virtual time must not go backwards: {t} < {}", self.t);
+        assert!(
+            t >= self.t,
+            "virtual time must not go backwards: {t} < {}",
+            self.t
+        );
         self.t = t;
     }
 }

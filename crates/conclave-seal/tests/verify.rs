@@ -29,7 +29,10 @@ fn verify_rejects_tampered_artifact() {
     let (pk_hex, sig_b64) = gen_key_and_sign(artifact);
     let tampered = b"#!/bin/sh\necho evil";
     let result = verify_capability(tampered, &pk_hex, &sig_b64);
-    assert!(result.is_err(), "tampered artifact should fail verification");
+    assert!(
+        result.is_err(),
+        "tampered artifact should fail verification"
+    );
 }
 
 #[test]

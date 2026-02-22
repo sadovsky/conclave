@@ -8,8 +8,8 @@ pub mod subgraph;
 pub mod types;
 
 pub use canonical::{
-    canonicalize_plan_ir, compute_constraint_id, compute_edge_id, compute_goal_id,
-    compute_node_id, compute_plan_ir_hash, compute_subgraph_id,
+    canonicalize_plan_ir, compute_constraint_id, compute_edge_id, compute_goal_id, compute_node_id,
+    compute_plan_ir_hash, compute_subgraph_id,
 };
 pub use constraint::{Constraint, ConstraintExpr, ConstraintScope};
 pub use edge::{Edge, EdgeEndpoint};

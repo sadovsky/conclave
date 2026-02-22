@@ -17,8 +17,8 @@ pub struct PackArgs {
 }
 
 pub fn run(args: PackArgs) -> anyhow::Result<()> {
-    let runtime_bytes = std::fs::read(&args.runtime)
-        .map_err(|e| anyhow::anyhow!("failed to read runtime: {e}"))?;
+    let runtime_bytes =
+        std::fs::read(&args.runtime).map_err(|e| anyhow::anyhow!("failed to read runtime: {e}"))?;
 
     let manifest_raw = std::fs::read_to_string(&args.manifest)
         .map_err(|e| anyhow::anyhow!("failed to read manifest: {e}"))?;
@@ -42,8 +42,11 @@ pub fn run(args: PackArgs) -> anyhow::Result<()> {
         },
     };
 
-    let result = conclave_pack::pack(conclave_pack::PackInput { runtime_bytes, bundle })
-        .map_err(|e| anyhow::anyhow!("pack failed: {e}"))?;
+    let result = conclave_pack::pack(conclave_pack::PackInput {
+        runtime_bytes,
+        bundle,
+    })
+    .map_err(|e| anyhow::anyhow!("pack failed: {e}"))?;
 
     std::fs::write(&args.output, &result.artifact_bytes)
         .map_err(|e| anyhow::anyhow!("failed to write artifact: {e}"))?;

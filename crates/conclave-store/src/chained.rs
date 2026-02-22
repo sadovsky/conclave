@@ -14,6 +14,8 @@ impl<A: CapabilityStore, B: CapabilityStore> ChainedStore<A, B> {
 
 impl<A: CapabilityStore, B: CapabilityStore> CapabilityStore for ChainedStore<A, B> {
     fn get(&self, artifact_hash: &str) -> Option<Vec<u8>> {
-        self.primary.get(artifact_hash).or_else(|| self.fallback.get(artifact_hash))
+        self.primary
+            .get(artifact_hash)
+            .or_else(|| self.fallback.get(artifact_hash))
     }
 }

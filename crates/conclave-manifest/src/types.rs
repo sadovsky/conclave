@@ -70,10 +70,10 @@ pub struct TieBreaker {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Determinism {
-    pub mode: String,    // "sealed_replay"
-    pub clock: String,   // "virtual"
+    pub mode: String,  // "sealed_replay"
+    pub clock: String, // "virtual"
     pub randomness: RandomnessPolicy,
-    pub float: String,   // "strict"
+    pub float: String, // "strict"
     pub io_policy: IoPolicy,
 }
 

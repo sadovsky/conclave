@@ -10,10 +10,7 @@ pub fn compute_canonical_manifest_hash(manifest: &Manifest) -> Hash {
     let mut v = serde_json::to_value(manifest).expect("Manifest is always serializable");
 
     // Targeted removal of just the signature field; parent objects remain.
-    remove_field_at_path(
-        &mut v,
-        &["supply_chain", "manifest_signature", "signature"],
-    );
+    remove_field_at_path(&mut v, &["supply_chain", "manifest_signature", "signature"]);
 
     let canonical = to_canonical_json(&v);
     sha256_str(&canonical)

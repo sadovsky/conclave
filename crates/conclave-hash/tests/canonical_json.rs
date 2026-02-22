@@ -1,4 +1,6 @@
-use conclave_hash::{remove_field, remove_field_at_path, remove_field_recursive, to_canonical_json};
+use conclave_hash::{
+    remove_field, remove_field_at_path, remove_field_recursive, to_canonical_json,
+};
 use serde_json::json;
 
 #[test]
@@ -94,8 +96,12 @@ fn remove_field_recursive_in_array() {
 
 #[test]
 fn remove_field_at_path_nested() {
-    let mut value = json!({"supply_chain": {"manifest_signature": {"signature": "abc", "algo": "ed25519"}}});
-    remove_field_at_path(&mut value, &["supply_chain", "manifest_signature", "signature"]);
+    let mut value =
+        json!({"supply_chain": {"manifest_signature": {"signature": "abc", "algo": "ed25519"}}});
+    remove_field_at_path(
+        &mut value,
+        &["supply_chain", "manifest_signature", "signature"],
+    );
     assert_eq!(
         to_canonical_json(&value),
         r#"{"supply_chain":{"manifest_signature":{"algo":"ed25519"}}}"#

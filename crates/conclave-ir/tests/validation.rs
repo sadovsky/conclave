@@ -6,8 +6,8 @@ fn minimal_ir() -> PlanIr {
         conclave_ir_version: "0.1".into(),
         module: Module {
             name: "test".into(),
-            source_fingerprint: "sha256:0000000000000000000000000000000000000000000000000000000000000000"
-                .into(),
+            source_fingerprint:
+                "sha256:0000000000000000000000000000000000000000000000000000000000000000".into(),
         },
         types: BTreeMap::new(),
         goals: vec![],
@@ -42,10 +42,17 @@ fn validate_rejects_duplicate_node_id() {
     let node = Node {
         node_id: "nid:dup".into(),
         kind: NodeKind::Intrinsic,
-        op: Op { name: "noop".into(), signature: "noop()->()".into() },
+        op: Op {
+            name: "noop".into(),
+            signature: "noop()->()".into(),
+        },
         inputs: vec![],
         outputs: vec![],
-        attrs: NodeAttrs { determinism_profile: DeterminismProfile::Fixed, cost_hints: None, url_index: None },
+        attrs: NodeAttrs {
+            determinism_profile: DeterminismProfile::Fixed,
+            cost_hints: None,
+            url_index: None,
+        },
         constraints: vec![],
         meta: None,
     };
@@ -62,8 +69,14 @@ fn validate_rejects_edge_with_unknown_node() {
     let mut ir = minimal_ir();
     ir.edges.push(Edge {
         edge_id: "eid:test".into(),
-        from: EdgeEndpoint { node_id: "nid:nonexistent".into(), port: "out".into() },
-        to: EdgeEndpoint { node_id: "nid:also_nonexistent".into(), port: "in".into() },
+        from: EdgeEndpoint {
+            node_id: "nid:nonexistent".into(),
+            port: "out".into(),
+        },
+        to: EdgeEndpoint {
+            node_id: "nid:also_nonexistent".into(),
+            port: "in".into(),
+        },
     });
     assert!(matches!(
         validate_plan_ir(&ir),

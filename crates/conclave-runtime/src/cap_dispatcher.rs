@@ -84,9 +84,12 @@ impl CapabilityDispatcher<'_> {
             return Err(RuntimeError::new("ERR_IO_POLICY_VIOLATION")
                 .with_node(node_id)
                 .with_capability(cap_signature)
-                .with_detail("reason", serde_json::Value::String(
-                    "nondet capability forbidden in sealed_replay mode".into(),
-                )));
+                .with_detail(
+                    "reason",
+                    serde_json::Value::String(
+                        "nondet capability forbidden in sealed_replay mode".into(),
+                    ),
+                ));
         }
 
         // Always try replay store first (both sealed_replay and live modes).
@@ -99,7 +102,10 @@ impl CapabilityDispatcher<'_> {
             return Err(RuntimeError::new("ERR_REPLAY_MISS")
                 .with_node(node_id)
                 .with_capability(cap_signature)
-                .with_detail("capability", serde_json::Value::String(cap_signature.into())));
+                .with_detail(
+                    "capability",
+                    serde_json::Value::String(cap_signature.into()),
+                ));
         }
 
         // live mode: invoke subprocess.
@@ -202,9 +208,7 @@ fn spawn_capability(
             .with_capability(cap_signature)
             .with_detail(
                 "exit_code",
-                serde_json::Value::Number(
-                    output.status.code().unwrap_or(-1).into(),
-                ),
+                serde_json::Value::Number(output.status.code().unwrap_or(-1).into()),
             ));
     }
 
@@ -225,7 +229,13 @@ fn spawn_capability(
                 .with_detail("base64_error", serde_json::Value::String(e.to_string()))
         })?;
 
-    Ok((Value { type_name: resp.output.type_name, data }, resp.duration_ms))
+    Ok((
+        Value {
+            type_name: resp.output.type_name,
+            data,
+        },
+        resp.duration_ms,
+    ))
 }
 
 /// Write artifact bytes to a temp file and make it executable. Returns the path.
@@ -236,8 +246,10 @@ fn tempfile_for_artifact(
 ) -> Result<std::path::PathBuf, RuntimeError> {
     use std::os::unix::fs::PermissionsExt;
 
-    let path = std::env::temp_dir()
-        .join(format!("conclave_cap_{}", conclave_hash::sha256_bytes(bytes)));
+    let path = std::env::temp_dir().join(format!(
+        "conclave_cap_{}",
+        conclave_hash::sha256_bytes(bytes)
+    ));
 
     std::fs::write(&path, bytes).map_err(|e| {
         RuntimeError::new("ERR_CAPABILITY_SPAWN_FAILED")

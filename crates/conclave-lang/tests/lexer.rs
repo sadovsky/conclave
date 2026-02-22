@@ -1,12 +1,24 @@
 use conclave_lang::lexer::{tokenize, Token};
 
 fn tok(input: &str) -> Vec<Token> {
-    tokenize(input).unwrap().into_iter().map(|s| s.token).collect()
+    tokenize(input)
+        .unwrap()
+        .into_iter()
+        .map(|s| s.token)
+        .collect()
 }
 
 #[test]
 fn goal_ident_parens() {
-    assert_eq!(tok("goal Foo()"), vec![Token::Goal, Token::Ident("Foo".into()), Token::LParen, Token::RParen]);
+    assert_eq!(
+        tok("goal Foo()"),
+        vec![
+            Token::Goal,
+            Token::Ident("Foo".into()),
+            Token::LParen,
+            Token::RParen
+        ]
+    );
 }
 
 #[test]
@@ -21,7 +33,10 @@ fn req_per_sec_no_space() {
 
 #[test]
 fn arrow_token() {
-    assert_eq!(tok("-> Html"), vec![Token::Arrow, Token::Ident("Html".into())]);
+    assert_eq!(
+        tok("-> Html"),
+        vec![Token::Arrow, Token::Ident("Html".into())]
+    );
 }
 
 #[test]
@@ -33,7 +48,13 @@ fn lteq_token() {
 fn version_line() {
     assert_eq!(
         tok("version 0.1;"),
-        vec![Token::Version, Token::Number(0), Token::Dot, Token::Number(1), Token::Semicolon]
+        vec![
+            Token::Version,
+            Token::Number(0),
+            Token::Dot,
+            Token::Number(1),
+            Token::Semicolon
+        ]
     );
 }
 
@@ -49,13 +70,27 @@ fn line_comment_skipped() {
 
 #[test]
 fn keywords_recognized() {
-    let kws = "version type capability intrinsic goal want map as let emit return constraints where";
+    let kws =
+        "version type capability intrinsic goal want map as let emit return constraints where";
     let tokens = tok(kws);
-    assert_eq!(tokens, vec![
-        Token::Version, Token::Type, Token::Capability, Token::Intrinsic,
-        Token::Goal, Token::Want, Token::Map, Token::As, Token::Let,
-        Token::Emit, Token::Return, Token::Constraints, Token::Where,
-    ]);
+    assert_eq!(
+        tokens,
+        vec![
+            Token::Version,
+            Token::Type,
+            Token::Capability,
+            Token::Intrinsic,
+            Token::Goal,
+            Token::Want,
+            Token::Map,
+            Token::As,
+            Token::Let,
+            Token::Emit,
+            Token::Return,
+            Token::Constraints,
+            Token::Where,
+        ]
+    );
 }
 
 #[test]

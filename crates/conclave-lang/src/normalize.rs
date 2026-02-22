@@ -37,8 +37,14 @@ pub fn normalize(mut module: Module) -> Result<Module, LangError> {
 
     // Rule 7: duplicate checks.
     check_no_duplicates(module.types.iter().map(|t| t.name.as_str()), "type")?;
-    check_no_duplicates(module.capabilities.iter().map(|c| c.alias.as_str()), "capability")?;
-    check_no_duplicates(module.intrinsics.iter().map(|i| i.alias.as_str()), "intrinsic")?;
+    check_no_duplicates(
+        module.capabilities.iter().map(|c| c.alias.as_str()),
+        "capability",
+    )?;
+    check_no_duplicates(
+        module.intrinsics.iter().map(|i| i.alias.as_str()),
+        "intrinsic",
+    )?;
     check_no_duplicates(module.goals.iter().map(|g| g.name.as_str()), "goal")?;
 
     Ok(module)

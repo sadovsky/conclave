@@ -1,7 +1,7 @@
 #![allow(dead_code, unused_variables)]
 use crate::ast::*;
 use crate::error::LangError;
-use crate::lexer::{Token, tokenize};
+use crate::lexer::{tokenize, Token};
 
 // ---------------------------------------------------------------------------
 // Token stream
@@ -81,36 +81,36 @@ fn token_eq(a: &Token, b: &Token) -> bool {
 
 fn token_display(tok: &Token) -> String {
     match tok {
-        Token::Version     => "version".into(),
-        Token::Type        => "type".into(),
-        Token::Capability  => "capability".into(),
-        Token::Intrinsic   => "intrinsic".into(),
-        Token::Goal        => "goal".into(),
-        Token::Want        => "want".into(),
-        Token::Map         => "map".into(),
-        Token::As          => "as".into(),
-        Token::Let         => "let".into(),
-        Token::Emit        => "emit".into(),
-        Token::Return      => "return".into(),
+        Token::Version => "version".into(),
+        Token::Type => "type".into(),
+        Token::Capability => "capability".into(),
+        Token::Intrinsic => "intrinsic".into(),
+        Token::Goal => "goal".into(),
+        Token::Want => "want".into(),
+        Token::Map => "map".into(),
+        Token::As => "as".into(),
+        Token::Let => "let".into(),
+        Token::Emit => "emit".into(),
+        Token::Return => "return".into(),
         Token::Constraints => "constraints".into(),
-        Token::Where       => "where".into(),
-        Token::LBrace      => "{".into(),
-        Token::RBrace      => "}".into(),
-        Token::LParen      => "(".into(),
-        Token::RParen      => ")".into(),
-        Token::LAngle      => "<".into(),
-        Token::RAngle      => ">".into(),
-        Token::Semicolon   => ";".into(),
-        Token::Comma       => ",".into(),
-        Token::Colon       => ":".into(),
-        Token::Equals      => "=".into(),
-        Token::Arrow       => "->".into(),
-        Token::LtEq        => "<=".into(),
-        Token::Dot         => ".".into(),
-        Token::Ident(s)    => s.clone(),
+        Token::Where => "where".into(),
+        Token::LBrace => "{".into(),
+        Token::RBrace => "}".into(),
+        Token::LParen => "(".into(),
+        Token::RParen => ")".into(),
+        Token::LAngle => "<".into(),
+        Token::RAngle => ">".into(),
+        Token::Semicolon => ";".into(),
+        Token::Comma => ",".into(),
+        Token::Colon => ":".into(),
+        Token::Equals => "=".into(),
+        Token::Arrow => "->".into(),
+        Token::LtEq => "<=".into(),
+        Token::Dot => ".".into(),
+        Token::Ident(s) => s.clone(),
         Token::StringLit(s) => format!("\"{}\"", s),
-        Token::Number(n)   => n.to_string(),
-        Token::ReqPerSec   => "req/s".into(),
+        Token::Number(n) => n.to_string(),
+        Token::ReqPerSec => "req/s".into(),
     }
 }
 
@@ -162,10 +162,10 @@ fn parse_module(ts: &mut Tokens) -> Result<Module, LangError> {
 
     while !ts.at_end() {
         match ts.peek() {
-            Some(Token::Type)       => types.push(parse_type_decl(ts)?),
+            Some(Token::Type) => types.push(parse_type_decl(ts)?),
             Some(Token::Capability) => capabilities.push(parse_cap_decl(ts)?),
-            Some(Token::Intrinsic)  => intrinsics.push(parse_intrinsic_decl(ts)?),
-            Some(Token::Goal)       => goals.push(parse_goal_decl(ts)?),
+            Some(Token::Intrinsic) => intrinsics.push(parse_intrinsic_decl(ts)?),
+            Some(Token::Goal) => goals.push(parse_goal_decl(ts)?),
             Some(_) => {
                 let (tok, l) = ts.advance().unwrap();
                 return Err(LangError::UnexpectedToken {
@@ -178,7 +178,13 @@ fn parse_module(ts: &mut Tokens) -> Result<Module, LangError> {
         }
     }
 
-    Ok(Module { version, types, capabilities, intrinsics, goals })
+    Ok(Module {
+        version,
+        types,
+        capabilities,
+        intrinsics,
+        goals,
+    })
 }
 
 /// Parse a version number token. Accepts `0` (Number) or looks for `0.1`
@@ -190,9 +196,7 @@ fn parse_version_number(ts: &mut Tokens, _hint_line: usize) -> Result<String, La
             if matches!(ts.peek(), Some(Token::Dot)) {
                 ts.advance(); // consume dot
                 match ts.advance() {
-                    Some((Token::Number(minor), _)) => {
-                        Ok(format!("{}.{}", major, minor))
-                    }
+                    Some((Token::Number(minor), _)) => Ok(format!("{}.{}", major, minor)),
                     Some((tok, line)) => Err(LangError::UnexpectedToken {
                         expected: "minor version number".into(),
                         got: token_display(&tok),
@@ -254,7 +258,11 @@ fn parse_type_decl(ts: &mut Tokens) -> Result<TypeDecl, LangError> {
     };
 
     ts.expect_token(&Token::Semicolon, "';'")?;
-    Ok(TypeDecl { name, base, constraint })
+    Ok(TypeDecl {
+        name,
+        base,
+        constraint,
+    })
 }
 
 /// A type expression: `IDENT` or `IDENT < IDENT >`.
@@ -335,7 +343,13 @@ fn parse_goal_decl(ts: &mut Tokens) -> Result<GoalDecl, LangError> {
     };
 
     ts.expect_token(&Token::RBrace, "'}' closing goal")?;
-    Ok(GoalDecl { name, params, returns, want, constraints })
+    Ok(GoalDecl {
+        name,
+        params,
+        returns,
+        want,
+        constraints,
+    })
 }
 
 fn parse_param_list(ts: &mut Tokens) -> Result<Vec<Param>, LangError> {
@@ -347,7 +361,10 @@ fn parse_param_list(ts: &mut Tokens) -> Result<Vec<Param>, LangError> {
         let param_name = ts.expect_ident()?;
         ts.expect_token(&Token::Colon, "':'")?;
         let type_name = parse_type_expr(ts)?;
-        params.push(Param { name: param_name, type_name });
+        params.push(Param {
+            name: param_name,
+            type_name,
+        });
     }
     Ok(params)
 }
@@ -450,7 +467,9 @@ fn parse_expr(ts: &mut Tokens) -> Result<Expr, LangError> {
     match ts.peek() {
         Some(Token::Ident(_)) => {
             let (tok, _) = ts.advance().unwrap();
-            let Token::Ident(name) = tok else { unreachable!() };
+            let Token::Ident(name) = tok else {
+                unreachable!()
+            };
             if matches!(ts.peek(), Some(Token::LParen)) {
                 // Call expression
                 ts.advance(); // consume '('
@@ -469,7 +488,9 @@ fn parse_expr(ts: &mut Tokens) -> Result<Expr, LangError> {
         }
         Some(Token::StringLit(_)) => {
             let (tok, _) = ts.advance().unwrap();
-            let Token::StringLit(value) = tok else { unreachable!() };
+            let Token::StringLit(value) = tok else {
+                unreachable!()
+            };
             Ok(Expr::StringLit { value })
         }
         Some(tok) => {
@@ -520,7 +541,10 @@ fn parse_constraint_expr(ts: &mut Tokens) -> Result<ConstraintExpr, LangError> {
             args.push(ts.expect_ident()?);
         }
         ts.expect_token(&Token::RParen, "')'")?;
-        ConstraintLeft::FnCall { name: first_ident, args }
+        ConstraintLeft::FnCall {
+            name: first_ident,
+            args,
+        }
     } else {
         // Path: `determinism.mode` or `scheduler.max_inflight`
         let mut segments = vec![first_ident];
@@ -560,7 +584,10 @@ fn parse_constraint_expr(ts: &mut Tokens) -> Result<ConstraintExpr, LangError> {
             // Check for `req/s`
             if matches!(ts.peek(), Some(Token::ReqPerSec)) {
                 ts.advance();
-                ConstraintValue::Rate { value: n, unit: "req/s".into() }
+                ConstraintValue::Rate {
+                    value: n,
+                    unit: "req/s".into(),
+                }
             } else {
                 ConstraintValue::Number { value: n }
             }

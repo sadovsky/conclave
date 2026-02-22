@@ -50,9 +50,8 @@ pub fn pack(mut input: PackInput) -> Result<PackOutput, PackError> {
     trailer[8..].copy_from_slice(MAGIC);
 
     // Assemble artifact.
-    let mut artifact = Vec::with_capacity(
-        input.runtime_bytes.len() + bundle_bytes.len() + TRAILER_LEN,
-    );
+    let mut artifact =
+        Vec::with_capacity(input.runtime_bytes.len() + bundle_bytes.len() + TRAILER_LEN);
     artifact.extend_from_slice(&input.runtime_bytes);
     artifact.extend_from_slice(&bundle_bytes);
     artifact.extend_from_slice(&trailer);
@@ -89,7 +88,9 @@ pub fn unpack(artifact_bytes: &[u8]) -> Result<Bundle, PackError> {
 
     // Locate bundle start.
     let bundle_end = len - TRAILER_LEN;
-    let bundle_start = bundle_end.checked_sub(bundle_len).ok_or(PackError::ArtifactTruncated)?;
+    let bundle_start = bundle_end
+        .checked_sub(bundle_len)
+        .ok_or(PackError::ArtifactTruncated)?;
 
     // Parse bundle JSON.
     let bundle_bytes = &artifact_bytes[bundle_start..bundle_end];

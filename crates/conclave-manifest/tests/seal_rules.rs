@@ -8,8 +8,8 @@ fn fixture_manifest() -> Manifest {
         "fetch(Url)->Html".into(),
         CapabilityBinding {
             capability_name: "fetch".into(),
-            artifact_hash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-                .into(),
+            artifact_hash:
+                "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
             determinism_profile: "replayable".into(),
             trust: "sandboxed_network_only".into(),
             config: Some({
@@ -31,8 +31,8 @@ fn fixture_manifest() -> Manifest {
         conclave_manifest_version: "0.1".into(),
         program: Program {
             name: "test_program".into(),
-            plan_ir_hash:
-                "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc".into(),
+            plan_ir_hash: "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+                .into(),
         },
         target: Target {
             triple: "aarch64-apple-darwin".into(),
@@ -40,12 +40,12 @@ fn fixture_manifest() -> Manifest {
             arch: "aarch64".into(),
         },
         toolchain: Toolchain {
-            lowerer_hash:
-                "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd".into(),
-            runtime_hash:
-                "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee".into(),
-            stdlib_hash:
-                "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff".into(),
+            lowerer_hash: "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                .into(),
+            runtime_hash: "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+                .into(),
+            stdlib_hash: "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+                .into(),
         },
         capability_bindings: bindings,
         scheduler_policy: SchedulerPolicy {
@@ -58,7 +58,10 @@ fn fixture_manifest() -> Manifest {
                 "SUMMARIZE".into(),
                 "ASSEMBLE".into(),
             ],
-            tie_breaker: TieBreaker { kind: "stable".into(), seed: 0 },
+            tie_breaker: TieBreaker {
+                kind: "stable".into(),
+                seed: 0,
+            },
         },
         determinism: Determinism {
             mode: "sealed_replay".into(),
@@ -119,7 +122,9 @@ fn fixture_plan_ir() -> PlanIr {
         edges: vec![],
         constraints: BTreeMap::new(),
         subgraphs: vec![],
-        exports: Exports { entry_goal: "gid:entry".into() },
+        exports: Exports {
+            entry_goal: "gid:entry".into(),
+        },
     }
 }
 
@@ -234,7 +239,8 @@ fn seal_rejects_signatures_required_with_no_accepted_keys() {
         sig.into(),
         CapabilityBinding {
             capability_name: "fetch".into(),
-            artifact_hash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
+            artifact_hash:
+                "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
             determinism_profile: "replayable".into(),
             trust: "deterministic".into(),
             config: None,

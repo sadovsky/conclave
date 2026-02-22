@@ -3,10 +3,10 @@ use std::collections::BTreeMap;
 
 use conclave_hash::{compute_stable_id, sha256_str};
 use conclave_ir::{
-    compute_constraint_id, compute_edge_id, compute_goal_id,
-    Constraint, ConstraintExpr as IrConstraintExpr, ConstraintRef, ConstraintScope,
-    DeterminismProfile, Edge, EdgeEndpoint, EdgeRef, Exports, Goal, GoalParam, InputPort,
-    Module as IrModule, Node, NodeAttrs, NodeKind, Op, OutputPort, PlanIr, Subgraph,
+    compute_constraint_id, compute_edge_id, compute_goal_id, Constraint,
+    ConstraintExpr as IrConstraintExpr, ConstraintRef, ConstraintScope, DeterminismProfile, Edge,
+    EdgeEndpoint, EdgeRef, Exports, Goal, GoalParam, InputPort, Module as IrModule, Node,
+    NodeAttrs, NodeKind, Op, OutputPort, PlanIr, Subgraph,
 };
 
 use crate::ast::*;
@@ -46,20 +46,30 @@ pub fn lower(source: &str, url_count: usize) -> Result<LowerOutput, LangError> {
     let goal_decl = module.goals.first().ok_or(LangError::NoGoals)?;
 
     // Build lookup maps for cap/intrinsic declarations.
-    let cap_map: BTreeMap<&str, &CapDecl> =
-        module.capabilities.iter().map(|c| (c.alias.as_str(), c)).collect();
-    let intr_map: BTreeMap<&str, &IntrinsicDecl> =
-        module.intrinsics.iter().map(|i| (i.alias.as_str(), i)).collect();
+    let cap_map: BTreeMap<&str, &CapDecl> = module
+        .capabilities
+        .iter()
+        .map(|c| (c.alias.as_str(), c))
+        .collect();
+    let intr_map: BTreeMap<&str, &IntrinsicDecl> = module
+        .intrinsics
+        .iter()
+        .map(|i| (i.alias.as_str(), i))
+        .collect();
 
     let mut state = LowerState::new(goal_decl.name.clone(), url_count, cap_map, intr_map);
 
     state.lower_goal(goal_decl)?;
 
     let plan_ir = state.build_plan_ir(&module, &normalized_source);
-    let plan_ir_hash =
-        conclave_ir::compute_plan_ir_hash(&plan_ir).to_string();
+    let plan_ir_hash = conclave_ir::compute_plan_ir_hash(&plan_ir).to_string();
 
-    Ok(LowerOutput { plan_ir, source_hash, ast_hash: ast_h, plan_ir_hash })
+    Ok(LowerOutput {
+        plan_ir,
+        source_hash,
+        ast_hash: ast_h,
+        plan_ir_hash,
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -69,7 +79,11 @@ pub fn lower(source: &str, url_count: usize) -> Result<LowerOutput, LangError> {
 #[derive(Clone)]
 enum Symbol {
     /// Output port of an already-lowered node.
-    NodePort { node_id: String, port: String, type_name: String },
+    NodePort {
+        node_id: String,
+        port: String,
+        type_name: String,
+    },
     /// The URL binder from a `map urls as url { ... }` at a given url_index.
     UrlParam { url_index: u32 },
 }
@@ -178,11 +192,14 @@ impl<'a> LowerState<'a> {
             return Err(LangError::ShadowedBinding(name.to_string()));
         }
         let (node_id, out_port, out_type) = self.lower_call_node(expr, scope, url_index, name)?;
-        scope.set(name, Symbol::NodePort {
-            node_id,
-            port: out_port,
-            type_name: out_type,
-        });
+        scope.set(
+            name,
+            Symbol::NodePort {
+                node_id,
+                port: out_port,
+                type_name: out_type,
+            },
+        );
         Ok(())
     }
 
@@ -216,11 +233,8 @@ impl<'a> LowerState<'a> {
         }
 
         // Register a subgraph for this map construct.
-        let subgraph_id = compute_stable_id(
-            "subgraph",
-            &format!("{}.map.{}", self.goal_name, list),
-        )
-        .to_string();
+        let subgraph_id =
+            compute_stable_id("subgraph", &format!("{}.map.{}", self.goal_name, list)).to_string();
         let sg = Subgraph {
             subgraph_id,
             kind: "map".into(),
@@ -249,7 +263,11 @@ impl<'a> LowerState<'a> {
                     .cloned()
                     .ok_or_else(|| LangError::UndefinedBinding(name.clone()))?;
                 match sym {
-                    Symbol::NodePort { node_id, port, type_name } => {
+                    Symbol::NodePort {
+                        node_id,
+                        port,
+                        type_name,
+                    } => {
                         self.collected.push((ui, node_id, port, type_name));
                     }
                     Symbol::UrlParam { .. } => {
@@ -321,11 +339,20 @@ impl<'a> LowerState<'a> {
             let port_name = format!("in_{}", idx);
             let edge = Edge {
                 edge_id: "placeholder".into(),
-                from: EdgeEndpoint { node_id: src_node_id.clone(), port: src_port.clone() },
-                to: EdgeEndpoint { node_id: node_id.clone(), port: port_name.clone() },
+                from: EdgeEndpoint {
+                    node_id: src_node_id.clone(),
+                    port: src_port.clone(),
+                },
+                to: EdgeEndpoint {
+                    node_id: node_id.clone(),
+                    port: port_name.clone(),
+                },
             };
             let edge_id = compute_edge_id(&edge).to_string();
-            let edge = Edge { edge_id: edge_id.clone(), ..edge };
+            let edge = Edge {
+                edge_id: edge_id.clone(),
+                ..edge
+            };
 
             input_ports.push(InputPort {
                 port: port_name,
@@ -336,12 +363,18 @@ impl<'a> LowerState<'a> {
         }
 
         let out_port = "output".to_string();
-        let output_ports = vec![OutputPort { port: out_port.clone(), type_name: out_type.clone() }];
+        let output_ports = vec![OutputPort {
+            port: out_port.clone(),
+            type_name: out_type.clone(),
+        }];
 
         let node = Node {
             node_id: node_id.clone(),
             kind: NodeKind::Aggregate,
-            op: Op { name: fn_name.to_string(), signature },
+            op: Op {
+                name: fn_name.to_string(),
+                signature,
+            },
             inputs: input_ports,
             outputs: output_ports,
             attrs: NodeAttrs {
@@ -385,7 +418,9 @@ impl<'a> LowerState<'a> {
 
         let (kind, signature, out_type) = self.resolve_fn(fn_name)?;
 
-        let ui_label = url_index.map(|u| u.to_string()).unwrap_or_else(|| "none".into());
+        let ui_label = url_index
+            .map(|u| u.to_string())
+            .unwrap_or_else(|| "none".into());
         let node_id_key = format!("{}.{}.{}.{}", self.goal_name, binder, fn_name, ui_label);
         let node_id = stable_node_id(&node_id_key);
 
@@ -406,14 +441,27 @@ impl<'a> LowerState<'a> {
             let arg_type = sig_args.get(i).cloned().unwrap_or_else(|| "Unknown".into());
 
             match self.resolve_expr(arg, scope)? {
-                Symbol::NodePort { node_id: src_id, port: src_port, .. } => {
+                Symbol::NodePort {
+                    node_id: src_id,
+                    port: src_port,
+                    ..
+                } => {
                     let edge = Edge {
                         edge_id: "placeholder".into(),
-                        from: EdgeEndpoint { node_id: src_id, port: src_port },
-                        to: EdgeEndpoint { node_id: node_id.clone(), port: port_name.clone() },
+                        from: EdgeEndpoint {
+                            node_id: src_id,
+                            port: src_port,
+                        },
+                        to: EdgeEndpoint {
+                            node_id: node_id.clone(),
+                            port: port_name.clone(),
+                        },
                     };
                     let edge_id = compute_edge_id(&edge).to_string();
-                    let edge = Edge { edge_id: edge_id.clone(), ..edge };
+                    let edge = Edge {
+                        edge_id: edge_id.clone(),
+                        ..edge
+                    };
                     input_ports.push(InputPort {
                         port: port_name,
                         type_name: arg_type,
@@ -433,13 +481,18 @@ impl<'a> LowerState<'a> {
         }
 
         let out_port = "output".to_string();
-        let output_ports =
-            vec![OutputPort { port: out_port.clone(), type_name: out_type.clone() }];
+        let output_ports = vec![OutputPort {
+            port: out_port.clone(),
+            type_name: out_type.clone(),
+        }];
 
         let node = Node {
             node_id: node_id.clone(),
             kind,
-            op: Op { name: fn_name.to_string(), signature },
+            op: Op {
+                name: fn_name.to_string(),
+                signature,
+            },
             inputs: input_ports,
             outputs: output_ports,
             attrs: NodeAttrs {
@@ -497,10 +550,7 @@ impl<'a> LowerState<'a> {
     }
 
     /// Resolve a function name to (NodeKind, canonical_signature, output_type).
-    fn resolve_fn(
-        &self,
-        fn_name: &str,
-    ) -> Result<(NodeKind, String, String), LangError> {
+    fn resolve_fn(&self, fn_name: &str) -> Result<(NodeKind, String, String), LangError> {
         if let Some(cap) = self.cap_map.get(fn_name) {
             let out_type = parse_signature_return(&cap.signature);
             return Ok((NodeKind::CapabilityCall, cap.signature.clone(), out_type));
@@ -516,11 +566,7 @@ impl<'a> LowerState<'a> {
     // Constraint lowering
     // -----------------------------------------------------------------------
 
-    fn lower_constraint(
-        &mut self,
-        cexpr: &ConstraintExpr,
-        _idx: usize,
-    ) -> Result<(), LangError> {
+    fn lower_constraint(&mut self, cexpr: &ConstraintExpr, _idx: usize) -> Result<(), LangError> {
         let (key, constraint_key, ast) = build_constraint_ast(cexpr);
 
         // Assign an ID via compute_constraint_id (content-addressed).
@@ -572,7 +618,10 @@ impl<'a> LowerState<'a> {
             params: module.goals[0]
                 .params
                 .iter()
-                .map(|p| GoalParam { name: p.name.clone(), type_name: p.type_name.clone() })
+                .map(|p| GoalParam {
+                    name: p.name.clone(),
+                    type_name: p.type_name.clone(),
+                })
                 .collect(),
             returns: vec![GoalParam {
                 name: "result".into(),
@@ -584,7 +633,10 @@ impl<'a> LowerState<'a> {
             exit_nodes,
         };
         let goal_id = compute_goal_id(&goal_goal).to_string();
-        let goal_goal = Goal { goal_id, ..goal_goal };
+        let goal_goal = Goal {
+            goal_id,
+            ..goal_goal
+        };
 
         // Re-compute stable node IDs (they were already computed during
         // lowering; nodes may have had their edge refs filled in, so recompute).
@@ -644,7 +696,9 @@ struct Scope {
 
 impl Scope {
     fn new() -> Self {
-        Scope { bindings: BTreeMap::new() }
+        Scope {
+            bindings: BTreeMap::new(),
+        }
     }
 
     fn get(&self, name: &str) -> Option<&Symbol> {
@@ -720,9 +774,7 @@ fn stable_node_id(key: &str) -> String {
 // Constraint AST builder
 // ---------------------------------------------------------------------------
 
-fn build_constraint_ast(
-    cexpr: &ConstraintExpr,
-) -> (String, String, serde_json::Value) {
+fn build_constraint_ast(cexpr: &ConstraintExpr) -> (String, String, serde_json::Value) {
     let op_str = match cexpr.op {
         CmpOp::Eq => "==",
         CmpOp::LtEq => "<=",
@@ -736,14 +788,12 @@ fn build_constraint_ast(
             (path, ck, ast)
         }
         ConstraintLeft::FnCall { name, args } => {
-            let path = format!(
-                "{}({})",
-                name,
-                args.join(", ")
-            );
+            let path = format!("{}({})", name, args.join(", "));
             let ck = format!("{}:{}", name, args.join(":"));
-            let arg_vals: Vec<serde_json::Value> =
-                args.iter().map(|a| serde_json::json!({ "ident": a })).collect();
+            let arg_vals: Vec<serde_json::Value> = args
+                .iter()
+                .map(|a| serde_json::json!({ "ident": a }))
+                .collect();
             let ast = serde_json::json!({ "fn": name, "args": arg_vals });
             (path, ck, ast)
         }

@@ -42,9 +42,17 @@ impl MapReplayStore {
         }
     }
 
-    pub fn insert(&mut self, capability: &str, key: &str, data: Vec<u8>, type_name: &str, duration_ms: u64) {
+    pub fn insert(
+        &mut self,
+        capability: &str,
+        key: &str,
+        data: Vec<u8>,
+        type_name: &str,
+        duration_ms: u64,
+    ) {
         let map_key = format!("{}::{}", capability, key);
-        self.entries.insert(map_key, (data, type_name.to_string(), duration_ms));
+        self.entries
+            .insert(map_key, (data, type_name.to_string(), duration_ms));
     }
 }
 
@@ -57,13 +65,15 @@ impl Default for MapReplayStore {
 impl ReplayStore for MapReplayStore {
     fn get(&self, capability: &str, normalized_key: &str) -> Option<ReplayEntry> {
         let map_key = format!("{}::{}", capability, normalized_key);
-        self.entries.get(&map_key).map(|(data, type_name, duration_ms)| ReplayEntry {
-            output: Value {
-                type_name: type_name.clone(),
-                data: data.clone(),
-            },
-            duration_ms: *duration_ms,
-        })
+        self.entries
+            .get(&map_key)
+            .map(|(data, type_name, duration_ms)| ReplayEntry {
+                output: Value {
+                    type_name: type_name.clone(),
+                    data: data.clone(),
+                },
+                duration_ms: *duration_ms,
+            })
     }
 }
 
@@ -89,7 +99,10 @@ pub fn dispatch_capability(
             RuntimeError::new("ERR_REPLAY_MISS")
                 .with_node(node_id)
                 .with_capability(capability_signature)
-                .with_detail("normalized_key", serde_json::Value::String(normalized_key.to_string())),
+                .with_detail(
+                    "normalized_key",
+                    serde_json::Value::String(normalized_key.to_string()),
+                ),
         ),
     }
 }

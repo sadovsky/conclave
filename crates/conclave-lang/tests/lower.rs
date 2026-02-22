@@ -1,5 +1,5 @@
-use conclave_lang::lower;
 use conclave_ir::validate_plan_ir;
+use conclave_lang::lower;
 
 fn source() -> &'static str {
     include_str!("fixtures/summarize_urls/source.conclave")
@@ -49,16 +49,28 @@ fn lower_constraints_present() {
     assert_eq!(out.plan_ir.constraints.len(), 3);
     // Check keys
     let keys: Vec<&str> = out.plan_ir.constraints.keys().map(|s| s.as_str()).collect();
-    assert!(keys.iter().any(|k| k.contains("determinism")), "missing determinism constraint");
-    assert!(keys.iter().any(|k| k.contains("rate_limit")), "missing rate_limit constraint");
-    assert!(keys.iter().any(|k| k.contains("scheduler")), "missing scheduler constraint");
+    assert!(
+        keys.iter().any(|k| k.contains("determinism")),
+        "missing determinism constraint"
+    );
+    assert!(
+        keys.iter().any(|k| k.contains("rate_limit")),
+        "missing rate_limit constraint"
+    );
+    assert!(
+        keys.iter().any(|k| k.contains("scheduler")),
+        "missing scheduler constraint"
+    );
 }
 
 #[test]
 fn lower_url_index_attrs_set() {
     let out = lower(source(), 3).unwrap();
     // Fetch, extract_text, and summarize nodes should have url_index set.
-    let with_index: Vec<_> = out.plan_ir.nodes.iter()
+    let with_index: Vec<_> = out
+        .plan_ir
+        .nodes
+        .iter()
         .filter(|n| n.attrs.url_index.is_some())
         .collect();
     // 3 fetch + 3 extract_text + 3 summarize = 9 nodes with url_index
@@ -66,7 +78,9 @@ fn lower_url_index_attrs_set() {
     // Check all indices 0, 1, 2 are present.
     for expected_idx in 0u32..3 {
         assert!(
-            with_index.iter().any(|n| n.attrs.url_index == Some(expected_idx)),
+            with_index
+                .iter()
+                .any(|n| n.attrs.url_index == Some(expected_idx)),
             "missing url_index {expected_idx}"
         );
     }
@@ -80,7 +94,12 @@ fn lower_entry_nodes_are_fetch_nodes() {
     assert_eq!(goal.entry_nodes.len(), 3, "expected 3 entry nodes");
     // All entry nodes should have kind CapabilityCall and op.name fetch
     for entry_id in &goal.entry_nodes {
-        let node = out.plan_ir.nodes.iter().find(|n| &n.node_id == entry_id).unwrap();
+        let node = out
+            .plan_ir
+            .nodes
+            .iter()
+            .find(|n| &n.node_id == entry_id)
+            .unwrap();
         assert_eq!(node.op.name, "fetch", "entry node should be a fetch node");
     }
 }
@@ -91,7 +110,12 @@ fn lower_exit_node_is_assemble_json() {
     let goal = &out.plan_ir.goals[0];
     assert_eq!(goal.exit_nodes.len(), 1);
     let exit_id = &goal.exit_nodes[0];
-    let exit_node = out.plan_ir.nodes.iter().find(|n| &n.node_id == exit_id).unwrap();
+    let exit_node = out
+        .plan_ir
+        .nodes
+        .iter()
+        .find(|n| &n.node_id == exit_id)
+        .unwrap();
     assert_eq!(exit_node.op.name, "assemble_json");
 }
 
@@ -160,7 +184,10 @@ goal G(urls: List<String>) -> Json {
 #[test]
 fn lower_type_registered_in_plan_ir() {
     let out = lower(source(), 1).unwrap();
-    assert!(out.plan_ir.types.contains_key("Url"), "Url type should be in Plan IR");
+    assert!(
+        out.plan_ir.types.contains_key("Url"),
+        "Url type should be in Plan IR"
+    );
     let url_type = &out.plan_ir.types["Url"];
     assert_eq!(url_type.kind, "alias");
     assert_eq!(url_type.of.as_deref(), Some("String"));
@@ -172,7 +199,10 @@ fn lower_type_registered_in_plan_ir() {
 fn lower_constraint_ast_structure() {
     let out = lower(source(), 1).unwrap();
     // Find the rate_limit constraint.
-    let (_, rate_c) = out.plan_ir.constraints.iter()
+    let (_, rate_c) = out
+        .plan_ir
+        .constraints
+        .iter()
         .find(|(k, _)| k.contains("rate_limit"))
         .expect("rate_limit constraint not found");
     assert_eq!(rate_c.expr.lang, "conclave_v0.1");

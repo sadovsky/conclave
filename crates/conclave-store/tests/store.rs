@@ -41,7 +41,8 @@ fn embedded_store_empty_bundle() {
         conclave_ir_version: "0.1".into(),
         module: Module {
             name: "test".into(),
-            source_fingerprint: "sha256:0000000000000000000000000000000000000000000000000000000000000000".into(),
+            source_fingerprint:
+                "sha256:0000000000000000000000000000000000000000000000000000000000000000".into(),
         },
         types: BTreeMap::new(),
         goals: vec![],
@@ -49,20 +50,30 @@ fn embedded_store_empty_bundle() {
         edges: vec![],
         constraints: BTreeMap::new(),
         subgraphs: vec![],
-        exports: Exports { entry_goal: "".into() },
+        exports: Exports {
+            entry_goal: "".into(),
+        },
     };
 
     let manifest = Manifest {
         conclave_manifest_version: "0.1".into(),
         program: Program {
             name: "test".into(),
-            plan_ir_hash: "sha256:0000000000000000000000000000000000000000000000000000000000000000".into(),
+            plan_ir_hash: "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+                .into(),
         },
-        target: Target { triple: "x86_64-unknown-linux-gnu".into(), os: "linux".into(), arch: "x86_64".into() },
+        target: Target {
+            triple: "x86_64-unknown-linux-gnu".into(),
+            os: "linux".into(),
+            arch: "x86_64".into(),
+        },
         toolchain: Toolchain {
-            lowerer_hash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
-            runtime_hash: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb".into(),
-            stdlib_hash: "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc".into(),
+            lowerer_hash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                .into(),
+            runtime_hash: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                .into(),
+            stdlib_hash: "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+                .into(),
         },
         capability_bindings: BTreeMap::new(),
         scheduler_policy: SchedulerPolicy {
@@ -70,12 +81,19 @@ fn embedded_store_empty_bundle() {
             max_inflight: 2,
             ready_queue_order: vec![],
             node_kind_order: vec![],
-            tie_breaker: TieBreaker { kind: "stable".into(), seed: 0 },
+            tie_breaker: TieBreaker {
+                kind: "stable".into(),
+                seed: 0,
+            },
         },
         determinism: Determinism {
             mode: "sealed_replay".into(),
             clock: "virtual".into(),
-            randomness: RandomnessPolicy { allowed: false, seed: 0, source: "none".into() },
+            randomness: RandomnessPolicy {
+                allowed: false,
+                seed: 0,
+                source: "none".into(),
+            },
             float: "strict".into(),
             io_policy: IoPolicy {
                 network: NetworkPolicy::ReplayOnly,
@@ -131,7 +149,9 @@ fn chained_store_prefers_primary() {
     // hash_b is only in fallback → still found via chain
     assert_eq!(chain.get(&hash_b).unwrap(), bytes_b);
     // unknown hash → None
-    assert!(chain.get("sha256:00000000000000000000000000000000000000000000000000000000000000ff").is_none());
+    assert!(chain
+        .get("sha256:00000000000000000000000000000000000000000000000000000000000000ff")
+        .is_none());
 }
 
 #[test]

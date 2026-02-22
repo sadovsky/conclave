@@ -116,7 +116,10 @@ fn main() {
             let duration_ms = t0.elapsed().as_millis() as u64;
             let data_b64 = base64::engine::general_purpose::STANDARD.encode(&body);
             let resp = SuccessResponse {
-                output: Output { type_name: "Html".into(), data_b64 },
+                output: Output {
+                    type_name: "Html".into(),
+                    data_b64,
+                },
                 duration_ms,
             };
             let json = serde_json::to_string(&resp).unwrap();
@@ -134,7 +137,10 @@ fn main() {
 }
 
 fn emit_error(out: &mut impl Write, code: &str, details: BTreeMap<String, serde_json::Value>) {
-    let resp = ErrorResponse { error: code.into(), details };
+    let resp = ErrorResponse {
+        error: code.into(),
+        details,
+    };
     let json = serde_json::to_string(&resp).unwrap();
     let _ = writeln!(out, "{json}");
     let _ = out.flush();

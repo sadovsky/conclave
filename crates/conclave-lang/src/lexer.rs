@@ -29,9 +29,9 @@ pub enum Token {
     Comma,
     Colon,
     Equals,
-    Arrow,  // ->
-    LtEq,   // <=
-    Dot,    // .
+    Arrow, // ->
+    LtEq,  // <=
+    Dot,   // .
 
     // --- Literals ---
     Ident(String),
@@ -85,12 +85,18 @@ pub fn tokenize(input: &str) -> Result<Vec<Spanned>, LangError> {
         if pos + 1 < len {
             match (bytes[pos], bytes[pos + 1]) {
                 (b'-', b'>') => {
-                    tokens.push(Spanned { token: Token::Arrow, line });
+                    tokens.push(Spanned {
+                        token: Token::Arrow,
+                        line,
+                    });
                     pos += 2;
                     continue;
                 }
                 (b'<', b'=') => {
-                    tokens.push(Spanned { token: Token::LtEq, line });
+                    tokens.push(Spanned {
+                        token: Token::LtEq,
+                        line,
+                    });
                     pos += 2;
                     continue;
                 }
@@ -135,7 +141,10 @@ pub fn tokenize(input: &str) -> Result<Vec<Spanned>, LangError> {
                 });
             }
             let s = &input[start..pos];
-            tokens.push(Spanned { token: Token::StringLit(s.to_string()), line });
+            tokens.push(Spanned {
+                token: Token::StringLit(s.to_string()),
+                line,
+            });
             pos += 1; // skip closing quote
             continue;
         }
@@ -156,36 +165,39 @@ pub fn tokenize(input: &str) -> Result<Vec<Spanned>, LangError> {
             // Check for `req/s` immediately following (with optional whitespace).
             let tok_line = line;
             let mut lookahead = pos;
-            while lookahead < len
-                && (bytes[lookahead] == b' ' || bytes[lookahead] == b'\t')
-            {
+            while lookahead < len && (bytes[lookahead] == b' ' || bytes[lookahead] == b'\t') {
                 lookahead += 1;
             }
-            if lookahead + 4 < len
-                && &input[lookahead..lookahead + 5] == "req/s"
-            {
+            if lookahead + 4 < len && &input[lookahead..lookahead + 5] == "req/s" {
                 // Check that nothing alphanumeric follows "req/s".
                 let after = lookahead + 5;
-                let next_is_alphanum = after < len
-                    && (bytes[after].is_ascii_alphanumeric() || bytes[after] == b'_');
+                let next_is_alphanum =
+                    after < len && (bytes[after].is_ascii_alphanumeric() || bytes[after] == b'_');
                 if !next_is_alphanum {
-                    tokens.push(Spanned { token: Token::Number(num), line: tok_line });
-                    tokens.push(Spanned { token: Token::ReqPerSec, line: tok_line });
+                    tokens.push(Spanned {
+                        token: Token::Number(num),
+                        line: tok_line,
+                    });
+                    tokens.push(Spanned {
+                        token: Token::ReqPerSec,
+                        line: tok_line,
+                    });
                     pos = after;
                     continue;
                 }
             }
 
-            tokens.push(Spanned { token: Token::Number(num), line: tok_line });
+            tokens.push(Spanned {
+                token: Token::Number(num),
+                line: tok_line,
+            });
             continue;
         }
 
         // Identifiers and keywords.
         if bytes[pos].is_ascii_alphabetic() || bytes[pos] == b'_' {
             let start = pos;
-            while pos < len
-                && (bytes[pos].is_ascii_alphanumeric() || bytes[pos] == b'_')
-            {
+            while pos < len && (bytes[pos].is_ascii_alphanumeric() || bytes[pos] == b'_') {
                 pos += 1;
             }
             let word = &input[start..pos];
@@ -206,19 +218,19 @@ pub fn tokenize(input: &str) -> Result<Vec<Spanned>, LangError> {
 
 fn keyword_or_ident(word: &str) -> Token {
     match word {
-        "version"     => Token::Version,
-        "type"        => Token::Type,
-        "capability"  => Token::Capability,
-        "intrinsic"   => Token::Intrinsic,
-        "goal"        => Token::Goal,
-        "want"        => Token::Want,
-        "map"         => Token::Map,
-        "as"          => Token::As,
-        "let"         => Token::Let,
-        "emit"        => Token::Emit,
-        "return"      => Token::Return,
+        "version" => Token::Version,
+        "type" => Token::Type,
+        "capability" => Token::Capability,
+        "intrinsic" => Token::Intrinsic,
+        "goal" => Token::Goal,
+        "want" => Token::Want,
+        "map" => Token::Map,
+        "as" => Token::As,
+        "let" => Token::Let,
+        "emit" => Token::Emit,
+        "return" => Token::Return,
         "constraints" => Token::Constraints,
-        "where"       => Token::Where,
-        _             => Token::Ident(word.to_string()),
+        "where" => Token::Where,
+        _ => Token::Ident(word.to_string()),
     }
 }

@@ -33,14 +33,8 @@ fn sort_array_by_field(root: &mut Value, array_field: &str, id_field: &str) {
         .and_then(|v| v.as_array_mut())
     {
         arr.sort_by(|a, b| {
-            let a_id = a
-                .get(id_field)
-                .and_then(|v| v.as_str())
-                .unwrap_or("");
-            let b_id = b
-                .get(id_field)
-                .and_then(|v| v.as_str())
-                .unwrap_or("");
+            let a_id = a.get(id_field).and_then(|v| v.as_str()).unwrap_or("");
+            let b_id = b.get(id_field).and_then(|v| v.as_str()).unwrap_or("");
             a_id.cmp(b_id)
         });
     }

@@ -28,7 +28,10 @@ pub fn run(args: SealArgs) -> anyhow::Result<()> {
         .map_err(|e| anyhow::anyhow!("seal failed: {e}"))?;
 
     eprintln!("plan_ir_hash:            {}", output.plan_ir_hash);
-    eprintln!("canonical_manifest_hash: {}", output.canonical_manifest_hash);
+    eprintln!(
+        "canonical_manifest_hash: {}",
+        output.canonical_manifest_hash
+    );
 
     let canonical_manifest = conclave_hash::to_canonical_json(
         &serde_json::to_value(&output.manifest)
