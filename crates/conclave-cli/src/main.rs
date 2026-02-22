@@ -25,6 +25,8 @@ enum Commands {
     Run(cmd::run::RunArgs),
     /// Inspect a sealed artifact: print hashes, bindings, and policies.
     Inspect(cmd::inspect::InspectArgs),
+    /// Install a capability binary into the content-addressed store.
+    InstallCap(cmd::install_cap::InstallCapArgs),
 }
 
 fn main() {
@@ -35,6 +37,7 @@ fn main() {
         Commands::Pack(args) => cmd::pack::run(args),
         Commands::Run(args) => cmd::run::run(args),
         Commands::Inspect(args) => cmd::inspect::run(args),
+        Commands::InstallCap(args) => cmd::install_cap::run(args),
     };
     if let Err(e) = result {
         eprintln!("error: {e}");

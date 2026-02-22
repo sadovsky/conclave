@@ -1,0 +1,16 @@
+[package]
+name    = "conclave-store"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde_json       = { workspace = true }
+base64           = { workspace = true }
+thiserror        = { workspace = true }
+conclave-hash    = { path = "../conclave-hash" }
+conclave-pack    = { path = "../conclave-pack" }
+
+[dev-dependencies]
+tempfile         = "3"
+conclave-ir      = { path = "../conclave-ir" }
+conclave-manifest = { path = "../conclave-manifest" }

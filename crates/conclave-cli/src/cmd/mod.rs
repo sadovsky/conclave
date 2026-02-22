@@ -1,4 +1,5 @@
 pub mod inspect;
+pub mod install_cap;
 pub mod pack;
 pub mod plan;
 pub mod run;

@@ -4,8 +4,17 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-serde_json = { workspace = true }
-thiserror  = { workspace = true }
-conclave-hash     = { path = "../conclave-hash" }
-conclave-ir       = { path = "../conclave-ir" }
+serde_json       = { workspace = true }
+thiserror        = { workspace = true }
+base64           = { workspace = true }
+hex              = { workspace = true }
+ed25519-dalek    = { workspace = true }
+signature        = { workspace = true }
+conclave-hash    = { path = "../conclave-hash" }
+conclave-ir      = { path = "../conclave-ir" }
 conclave-manifest = { path = "../conclave-manifest" }
+
+[dev-dependencies]
+ed25519-dalek    = { workspace = true }
+hex              = { workspace = true }
+base64           = { workspace = true }

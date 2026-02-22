@@ -1,3 +1,6 @@
+pub mod verify;
+pub use verify::{verify_capability, VerifyError};
+
 use conclave_hash::Hash;
 use conclave_ir::PlanIr;
 use conclave_manifest::{compute_canonical_manifest_hash, validate_seal, Manifest, SealError};

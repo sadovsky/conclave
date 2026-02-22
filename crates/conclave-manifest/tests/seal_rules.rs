@@ -225,3 +225,27 @@ fn seal_rejects_network_cap_not_replay_in_sealed_replay_mode() {
         Err(SealError::NetworkCapabilityNotReplay(_))
     ));
 }
+
+#[test]
+fn seal_rejects_signatures_required_with_no_accepted_keys() {
+    let mut m = fixture_manifest();
+    let sig = "fetch(Url)->Html";
+    m.capability_bindings.insert(
+        sig.into(),
+        CapabilityBinding {
+            capability_name: "fetch".into(),
+            artifact_hash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
+            determinism_profile: "replayable".into(),
+            trust: "deterministic".into(),
+            config: None,
+            signatures: Some(CapabilitySignatures {
+                required: true,
+                accepted_keys: vec![], // empty — should be rejected
+            }),
+        },
+    );
+    assert!(matches!(
+        validate_seal(&m, &fixture_plan_ir()),
+        Err(SealError::SignatureRequiredButNoKeys(_))
+    ));
+}

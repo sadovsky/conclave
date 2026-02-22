@@ -140,15 +140,31 @@ fn build_replay_store_missing_f2() -> MapReplayStore {
     store
 }
 
+/// Build a CapabilityDispatcher in sealed_replay mode wrapping a replay store.
+fn make_dispatcher<'a>(
+    store: &'a MapReplayStore,
+    bindings: &'a BTreeMap<String, conclave_manifest::CapabilityBinding>,
+) -> CapabilityDispatcher<'a> {
+    CapabilityDispatcher {
+        replay_store: store,
+        cap_store: None,
+        bindings,
+        determinism_mode: "sealed_replay".into(),
+        seed: 0,
+    }
+}
+
 #[test]
 fn conformance_dispatch_order() {
     let plan_ir = build_summarize_plan_ir();
     let policy = build_scheduler_policy();
     let store = build_replay_store();
+    let bindings = BTreeMap::new();
+    let dispatcher = make_dispatcher(&store, &bindings);
     let mut scheduler = Scheduler::new(policy);
     let mut trace = TraceEmitter::new();
 
-    let _ = scheduler.run(&plan_ir, &store, &mut trace).unwrap();
+    let _ = scheduler.run(&plan_ir, &dispatcher, &mut trace).unwrap();
 
     let dispatch_order: Vec<&str> = trace
         .events()
@@ -170,10 +186,12 @@ fn conformance_f3_not_dispatched_before_window_1() {
     let plan_ir = build_summarize_plan_ir();
     let policy = build_scheduler_policy();
     let store = build_replay_store();
+    let bindings = BTreeMap::new();
+    let dispatcher = make_dispatcher(&store, &bindings);
     let mut scheduler = Scheduler::new(policy);
     let mut trace = TraceEmitter::new();
 
-    let _ = scheduler.run(&plan_ir, &store, &mut trace).unwrap();
+    let _ = scheduler.run(&plan_ir, &dispatcher, &mut trace).unwrap();
 
     // F3 must not dispatch before t=1000.
     let f3_dispatch = trace
@@ -194,10 +212,12 @@ fn conformance_replay_miss_produces_deterministic_error() {
     let plan_ir = build_summarize_plan_ir();
     let policy = build_scheduler_policy();
     let store = build_replay_store_missing_f2();
+    let bindings = BTreeMap::new();
+    let dispatcher = make_dispatcher(&store, &bindings);
     let mut scheduler = Scheduler::new(policy);
     let mut trace = TraceEmitter::new();
 
-    let result = scheduler.run(&plan_ir, &store, &mut trace);
+    let result = scheduler.run(&plan_ir, &dispatcher, &mut trace);
 
     match result {
         Err(e) => {
@@ -217,14 +237,17 @@ fn trace_is_deterministic() {
     let plan_ir = build_summarize_plan_ir();
     let policy = build_scheduler_policy();
     let store = build_replay_store();
+    let bindings = BTreeMap::new();
+    let d1 = make_dispatcher(&store, &bindings);
+    let d2 = make_dispatcher(&store, &bindings);
 
     let mut s1 = Scheduler::new(policy.clone());
     let mut t1 = TraceEmitter::new();
-    let _ = s1.run(&plan_ir, &store, &mut t1).unwrap();
+    let _ = s1.run(&plan_ir, &d1, &mut t1).unwrap();
 
     let mut s2 = Scheduler::new(policy);
     let mut t2 = TraceEmitter::new();
-    let _ = s2.run(&plan_ir, &store, &mut t2).unwrap();
+    let _ = s2.run(&plan_ir, &d2, &mut t2).unwrap();
 
     assert_eq!(t1.events(), t2.events(), "trace must be identical across runs");
     assert_eq!(t1.trace_hash(), t2.trace_hash(), "trace_hash must be identical");

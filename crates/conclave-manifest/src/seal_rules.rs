@@ -70,5 +70,14 @@ pub fn validate_seal(manifest: &Manifest, plan_ir: &PlanIr) -> Result<(), SealEr
         }
     }
 
+    // Rule 7: if signatures.required == true, accepted_keys must be non-empty.
+    for (sig, binding) in &manifest.capability_bindings {
+        if let Some(sigs) = &binding.signatures {
+            if sigs.required && sigs.accepted_keys.is_empty() {
+                return Err(SealError::SignatureRequiredButNoKeys(sig.clone()));
+            }
+        }
+    }
+
     Ok(())
 }

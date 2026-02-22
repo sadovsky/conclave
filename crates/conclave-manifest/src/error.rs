@@ -14,4 +14,6 @@ pub enum SealError {
     NetworkCapabilityNotReplay(String),
     #[error("plan_ir_hash mismatch: manifest has {manifest}, computed {computed}")]
     PlanIrHashMismatch { manifest: String, computed: String },
+    #[error("capability '{0}' has signatures.required=true but accepted_keys is empty")]
+    SignatureRequiredButNoKeys(String),
 }

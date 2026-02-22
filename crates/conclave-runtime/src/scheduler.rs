@@ -1,5 +1,6 @@
+use crate::cap_dispatcher::CapabilityDispatcher;
 use crate::clock::VirtualClock;
-use crate::dispatch::{ReplayStore, Value};
+use crate::dispatch::Value;
 use crate::error::RuntimeError;
 use crate::rate_limiter::TokenBucket;
 use crate::trace::TraceEmitter;
@@ -55,7 +56,7 @@ impl Scheduler {
     pub fn run(
         &mut self,
         plan_ir: &PlanIr,
-        replay_store: &dyn ReplayStore,
+        dispatcher: &CapabilityDispatcher<'_>,
         trace: &mut TraceEmitter,
     ) -> Result<BTreeMap<String, Value>, RuntimeError> {
         // Build kind priority map: kind_label (uppercase) -> priority index.
@@ -176,16 +177,7 @@ impl Scheduler {
 
                 // Resolve the result and duration now (single-threaded simulation).
                 let result: Result<(Value, u64), RuntimeError> = if matches!(ir_node.kind, NodeKind::CapabilityCall) {
-                    match replay_store.get(cap_sig, node_id) {
-                        Some(entry) => Ok((entry.output, entry.duration_ms)),
-                        None => Err(RuntimeError::new("ERR_REPLAY_MISS")
-                            .with_node(node_id)
-                            .with_capability(cap_sig)
-                            .with_detail(
-                                "capability",
-                                serde_json::Value::String(cap_sig.clone()),
-                            )),
-                    }
+                    dispatcher.dispatch(node_id, cap_sig, clock.now())
                 } else {
                     let dur = local_duration_for(ir_node);
                     Ok((Value { type_name: "()".into(), data: vec![] }, dur))

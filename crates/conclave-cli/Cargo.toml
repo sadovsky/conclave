@@ -18,3 +18,5 @@ conclave-manifest = { path = "../conclave-manifest" }
 conclave-seal     = { path = "../conclave-seal" }
 conclave-pack     = { path = "../conclave-pack" }
 conclave-runtime  = { path = "../conclave-runtime" }
+conclave-store    = { path = "../conclave-store" }
+dirs-next         = { workspace = true }
