@@ -60,12 +60,17 @@ pub struct CapabilityDispatcher<'a> {
 }
 
 impl CapabilityDispatcher<'_> {
+    /// Dispatch a capability node.
+    ///
+    /// `extra_inputs` contains pre-resolved values from upstream dependency nodes.
+    /// These are merged with any url-injected inputs before subprocess invocation.
     pub fn dispatch(
         &self,
         node_id: &str,
         cap_signature: &str,
         url_index: Option<u32>,
         virtual_time: u64,
+        extra_inputs: BTreeMap<String, serde_json::Value>,
     ) -> Result<(Value, u64), RuntimeError> {
         let binding = self.bindings.get(cap_signature);
 
@@ -106,8 +111,8 @@ impl CapabilityDispatcher<'_> {
                     .with_capability(cap_signature)
             })?;
 
-        // Build inputs: inject URL from url_inputs if url_index is provided.
-        let mut inputs: BTreeMap<String, serde_json::Value> = BTreeMap::new();
+        // Build inputs: start with extra (upstream) inputs, then inject URL if available.
+        let mut inputs: BTreeMap<String, serde_json::Value> = extra_inputs;
         if let Some(idx) = url_index {
             if let Some(url) = self.url_inputs.get(idx as usize) {
                 inputs.insert("url".into(), serde_json::Value::String(url.clone()));

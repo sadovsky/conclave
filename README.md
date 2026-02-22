@@ -87,19 +87,25 @@ conclave lower summarize.conclave --url-count 3 --output plan_ir.json
 ### Seal, pack, run
 
 ```bash
+# Install a capability binary (gets a sha256 content-address)
+conclave install-cap ./target/release/conclave-cap-fetch
+# → sha256:<HASH>  ← paste this into your manifest
+
 # Seal: pin capabilities, validate determinism mode
-conclave seal plan_ir.json manifest.json --output sealed_manifest.json
+conclave seal --plan plan_ir.json --manifest manifest.json --output sealed.json
 
 # Pack: bundle plan + manifest into a self-contained artifact
-conclave pack plan_ir.json sealed_manifest.json --output artifact.cnclv
-
-# Install a capability binary (gets a sha256 identity)
-conclave install-cap ./target/release/conclave-cap-fetch
+conclave pack \
+  --runtime ./target/release/conclave \
+  --plan plan_ir.json \
+  --manifest sealed.json \
+  --output artifact.cnclv
 
 # Run
 conclave run artifact.cnclv \
   --urls "https://example.com,https://anthropic.com,https://example.org" \
-  --trace-out trace.json
+  --trace-out trace.json \
+  --mode live
 ```
 
 ---
@@ -204,11 +210,11 @@ conclave install-cap ./target/release/conclave-cap-fetch
 ## CLI reference
 
 ```
-conclave lower  <source.conclave> [--url-count N] [--output plan_ir.json]
-conclave plan   <input>           [--url-count N] [--output plan_ir.json]
-conclave seal   <plan_ir.json> <manifest.json>   [--output sealed.json]
-conclave pack   <plan_ir.json> <sealed.json>     [--output artifact.cnclv]
-conclave run    <artifact.cnclv> [--urls URL,...] [--trace-out trace.json] [--mode live|sealed_replay]
+conclave lower   <source.conclave> [--url-count N] [-o plan_ir.json]
+conclave plan    <input>           [--url-count N] [-o plan_ir.json]
+conclave seal    --plan <plan_ir.json> --manifest <manifest.json> [-o sealed.json]
+conclave pack    --runtime <binary> --plan <plan_ir.json> --manifest <sealed.json> -o artifact.cnclv
+conclave run     <artifact.cnclv> [--urls URL,...] [--trace-out trace.json] [--mode live|sealed_replay]
 conclave inspect <artifact.cnclv>
 conclave install-cap <capability_binary> [--store <dir>]
 ```
@@ -221,7 +227,7 @@ The `plan` command accepts both `.json` (Plan IR) and `.conclave` (source) files
 
 ```bash
 cargo test --workspace
-# 133 tests, 0 failures
+# 134 tests, 0 failures
 ```
 
 ---

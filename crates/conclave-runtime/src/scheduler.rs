@@ -87,6 +87,13 @@ impl Scheduler {
 
         // Build dependency map: node_id -> [node_ids that must complete first].
         let mut deps_map: BTreeMap<String, Vec<String>> = BTreeMap::new();
+        // Build edge-source map: edge_id -> from_node_id (for resolving input values).
+        let edge_source_map: BTreeMap<String, String> = plan_ir
+            .edges
+            .iter()
+            .map(|e| (e.edge_id.clone(), e.from.node_id.clone()))
+            .collect();
+
         for node in &plan_ir.nodes {
             let mut deps = Vec::new();
             for input in &node.inputs {
@@ -175,9 +182,33 @@ impl Scheduler {
                     }
                 }
 
+                // Resolve upstream dependency outputs as extra inputs for capability calls.
+                // For each input port that has a source edge, look up the completed upstream
+                // node's output and inject it with a type-derived key.
+                let extra_inputs = if matches!(ir_node.kind, NodeKind::CapabilityCall) {
+                    let mut extras: BTreeMap<String, serde_json::Value> = BTreeMap::new();
+                    for input_port in &ir_node.inputs {
+                        if let Some(source) = &input_port.source {
+                            if let Some(upstream_node_id) = edge_source_map.get(&source.edge_id) {
+                                if let Some(upstream_data) = nodes.get(upstream_node_id) {
+                                    if let Some(upstream_output) = &upstream_data.output {
+                                        // Use the lowercase type name as the input key.
+                                        let key = input_port.type_name.to_lowercase();
+                                        let value_str = String::from_utf8_lossy(&upstream_output.data).to_string();
+                                        extras.insert(key, serde_json::Value::String(value_str));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    extras
+                } else {
+                    BTreeMap::new()
+                };
+
                 // Resolve the result and duration now (single-threaded simulation).
                 let result: Result<(Value, u64), RuntimeError> = if matches!(ir_node.kind, NodeKind::CapabilityCall) {
-                    dispatcher.dispatch(node_id, cap_sig, ir_node.attrs.url_index, clock.now())
+                    dispatcher.dispatch(node_id, cap_sig, ir_node.attrs.url_index, clock.now(), extra_inputs)
                 } else {
                     let dur = local_duration_for(ir_node);
                     Ok((Value { type_name: "()".into(), data: vec![] }, dur))
