@@ -104,10 +104,25 @@ It's a structured declaration of intent.
 You (aka one of your agents) write something like:
 
 ```conclave
-map urls as url {
-  let html = fetch(url);
-  let text = extract_text(html);
-  emit summarize(text);
+version 0.1;
+
+type Url = String where re2("^https?://");
+
+capability fetch: fetch(Url) -> Html;
+intrinsic assemble_json: assemble_json(List<Html>) -> Json;
+
+goal FetchPages(urls: List<Url>) -> Json {
+  want {
+    map urls as url {
+      let page = fetch(url);
+      emit page;
+    }
+    return assemble_json(collected);
+  }
+  constraints {
+    determinism.mode == "live";
+    scheduler.max_inflight <= 2;
+  }
 }
 ```
 
