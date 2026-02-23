@@ -1,6 +1,6 @@
 # Multi-Agent Conclave: What Already Works, and What Comes Next
 
-*February 2026*
+*AI Generated* — *February 2026*
 
 Here is something that already happened without any fanfare.
 
