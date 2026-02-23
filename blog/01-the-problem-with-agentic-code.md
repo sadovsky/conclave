@@ -2,6 +2,8 @@
 
 *A case for deterministic execution in the age of agentic coding.*
 
+*AI Generated*
+
 ---
 
 We are in the middle of a shift that most people haven't fully named yet.

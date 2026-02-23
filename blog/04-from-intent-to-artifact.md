@@ -2,6 +2,8 @@
 
 *A walkthrough of the full pipeline — from a `.conclave` source file to a deterministic, auditable execution artifact.*
 
+*AI Generated*
+
 ---
 
 You've seen what Conclave does conceptually. This post is about how it actually works — from the moment you write (or an agent generates) a `.conclave` file, to the moment a run produces a cryptographically-fingerprinted trace.

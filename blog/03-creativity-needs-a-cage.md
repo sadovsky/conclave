@@ -2,6 +2,8 @@
 
 *On the missing piece between "an agent wrote this" and "I can trust this."*
 
+*AI Generated*
+
 ---
 
 There's a tension at the heart of agentic systems that nobody talks about clearly.

@@ -2,6 +2,8 @@
 
 *We ran the same agent plan twice — once with a Rust fetch binary, once with a Python script. Here's what we learned.*
 
+*AI Generated*
+
 ---
 
 Last week we ran a test that sounds simple but proves something we think is important.

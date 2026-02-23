@@ -2,6 +2,8 @@
 
 *February 2026*
 
+*AI Generated*
+
 One of the design goals for Conclave has always been that it should be *agent-friendly*. Not just usable by humans who read documentation, but generatable by AI agents that read a guide and run commands. This post documents the first time we actually tested that: we gave an agent the AGENT_GUIDE, told it to write a new capability from scratch, and let it run the full pipeline.
 
 Here's exactly what happened.

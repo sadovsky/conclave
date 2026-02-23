@@ -1,5 +1,7 @@
 # Conclave
 
+*AI Generated*
+
 **Intent-first, deterministic programming model for agentic systems.**
 
 Conclave gives AI agents a substrate where they can be *powerful* and *auditable* at the same time. An agent generates a `.conclave` program. That program is lowered to a Plan IR, sealed into a content-addressed artifact, and run by a deterministic scheduler. Same inputs → identical output and execution trace. Every time.

@@ -1,5 +1,7 @@
 # Hello World: A Complete Conclave Program
 
+*AI Generated*
+
 This guide walks through every step to write, seal, pack, and run a working Conclave program from scratch. Every command is exact and copy-pasteable.
 
 **What we're building:** a program that fetches two URLs and collects their HTML. One capability (`fetch`), two inputs, one deterministic trace.
