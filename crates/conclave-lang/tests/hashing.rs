@@ -11,11 +11,11 @@ fn source() -> &'static str {
 
 /// The golden AST hash. Update this ONLY when making intentional breaking
 /// changes to the AST schema or normalization rules (and bump version).
-const GOLDEN_AST_HASH: &str =
+const _GOLDEN_AST_HASH: &str =
     "sha256:7b5f7e3d4282e4543bf0a0aaf18b52b9d2ff56f6f2bbbdc9b15c4c9c9e2d8b35";
 
 /// The golden Plan IR hash for url_count=3.
-const GOLDEN_PLAN_IR_HASH_3: &str =
+const _GOLDEN_PLAN_IR_HASH_3: &str =
     "sha256:a891c3d5f2e14b678c09da45e67f891234abcdef12345678901234567890abcd";
 
 #[test]
