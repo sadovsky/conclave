@@ -8,31 +8,17 @@ So this is a purely human authored preamble to this cyborg manifesto. A friend t
 
 For the past couple weeks I’ve been wondering how AI would write its own language. The idea that machines would just speak in 1’s and 0’s machine code seems popular in the common mindset, but from an information theory point of view, seems pretty wasteful. In fact, machines I’d assume would want to speak in even higher levels of abstraction. That said, there’s no need for variance or syntactic sugar. They should be able to express ideas in terms of plans and constraints and the “hive mind” should generally be able to agree on what this means.
 
----
-
 So I started off trying to build that. What would a programming language for AI Agents look like… But I quickly realized it would be pointless to reinvent all known software in yet another language. AI Agents today are impressive because they can glue insane amounts of context together without a second thought. And that’s really their power, using so much trained libraries to generate code as needed. Even if they are amazing transpilers, it’s not worth the tokens.
-
----
 
 So in steps another problem I’ve been really interested in: multiple agents working together. In my late Bachelor studies with John Holland, and then subsequently my PhD, I became obsessed with emergence. Multiple tiny agents working together to create a whole that’s more than the sum of its parts. In biological, social and technological systems you can represent the emergence as some type of network, which is captured well as a graph. I felt like if a language was ever going to be successful for agents, it would have to have the ability for chucks of it to be debated and structure to be inter changeable. Plus graphs make great patterns and have amazing properties. They are the substrate that agents naturally would gravitate to.
 
----
-
 Next came a problem that I kept seeing occurring. I often switch from Claude Code to Codex because I run out of tokens. In that swap, it’s often that huge swaths of code are rewritten without any formal equivalence being guaranteed. At work, many who are less comfortable with Agentic Engineering worry about the authenticity of what is being done. There’s no formal proof or even human guarantee that things have stayed the same. Blind trust in a machine is hard for many to have. Many tokens are wasted probably rewriting the exact same thing in different ways. That said, I love the creativity and innovation that a swarm of agents can provide.
-
----
 
 I also went on a mini vision quest at this time thinking about how much linkers cause problems for software. After living through the “DLL hell” era of windows, and fighting many an early days of Redhat and Gentoo Linux library issues, I’ve kinda learned to despise dynamic linking. I’m also not a fan of giant static binaries, but I love the Docker “layer” style of software.
 
----
-
 Ok, so at this point, my ADHD mind started to forget what my core purpose was, but then it all came together as I zoomed out. At the end of the day I wanted to focus my mind on a DSL, for agents, that could create verifiable graphs and subgraphs, that ultimately could be modified with precision and certainty. And cryptographically confirming this all was mostly icing on the cake; which, is ironic because that’s probably the most economically viable and useful part of this exercise, an end to end auditable system and software. And even though I work in legal AI compliance and this would be a huge benefit to the work I do there, for this side project, it’s just a cute way for Agents to express themselves in uncertain code that slowly but surely becomes more and more deterministic to create hopefully better software.
 
----
-
 So from that, Conclave was born. Despite a Computer Science degree many years ago, my focus has always been more on Statistics, ML, and AI, so while I wish I could say I just whipped up a linter and got to work, I very heavily needed AI coding agent support to make my dream a reality and prove that I could get to a working language. The end result, a symbiotic dance with AI coding, actually built up backwards from the artifact generation to the DSL, is how I got to the 0.1 version you see today.
-
----
 
 If anything, my scope is probably already too big. I might focus on its use for AI auditable pipelines in legal context as that’s where my day job interests intersect. Or I might just use it to nerd out on things like ASTs and Plan Generation and take that 400 level Programming Languages course I never got the chance to do at University. Or maybe this is it, I get distracted and never work on this again… But one day, when someone writes an LLM native language, if it uses even a touch of a topic I did here, I can hope, in my heart, I was some training set or tiny LLM network weight contribution to the future of software.
 
