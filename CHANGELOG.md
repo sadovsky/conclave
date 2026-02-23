@@ -1,5 +1,27 @@
 # Changelog
 
+## [Unreleased — v0.2]
+
+Full spec: [docs/V0.2_PLAN.md](docs/V0.2_PLAN.md)
+
+### Planned
+
+#### Expanded DSL
+- `if/else` conditional branching in `want` blocks
+- `reduce`/`fold` over lists (sequential, deterministic left-fold)
+- `pure` inline compute blocks (intrinsics only, no subprocess)
+- Multiple goals per `.conclave` file; `--goal NAME` selector in `conclave lower`
+
+#### Goal Modules
+- `import Name: sha256:<hash>;` top-level declaration
+- Lowerer resolves and expands imported goals as typed subgraphs in the parent Plan IR
+- `subgraph_id` field on Plan IR nodes for attribution and auditing
+- `module_bindings` in manifest — transitive capability requirements from imports enforced at seal time
+- `conclave module` CLI subcommands: `publish`, `install`, `list`, `inspect`
+- Module cache: `~/Library/Caches/conclave/modules/` (macOS), `~/.cache/conclave/modules/` (Linux)
+
+---
+
 ## [0.1.0] — 2026-02-22
 
 Initial release of Conclave v0.1.
