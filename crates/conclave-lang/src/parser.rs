@@ -82,6 +82,7 @@ fn token_eq(a: &Token, b: &Token) -> bool {
 fn token_display(tok: &Token) -> String {
     match tok {
         Token::Version => "version".into(),
+        Token::Import => "import".into(),
         Token::Type => "type".into(),
         Token::Capability => "capability".into(),
         Token::Intrinsic => "intrinsic".into(),
@@ -155,6 +156,7 @@ fn parse_module(ts: &mut Tokens) -> Result<Module, LangError> {
     let version = parse_version_number(ts, line)?;
     ts.expect_token(&Token::Semicolon, "';' after version")?;
 
+    let mut imports: Vec<ImportDecl> = Vec::new();
     let mut types: Vec<TypeDecl> = Vec::new();
     let mut capabilities: Vec<CapDecl> = Vec::new();
     let mut intrinsics: Vec<IntrinsicDecl> = Vec::new();
@@ -162,6 +164,7 @@ fn parse_module(ts: &mut Tokens) -> Result<Module, LangError> {
 
     while !ts.at_end() {
         match ts.peek() {
+            Some(Token::Import) => imports.push(parse_import_decl(ts)?),
             Some(Token::Type) => types.push(parse_type_decl(ts)?),
             Some(Token::Capability) => capabilities.push(parse_cap_decl(ts)?),
             Some(Token::Intrinsic) => intrinsics.push(parse_intrinsic_decl(ts)?),
@@ -169,7 +172,7 @@ fn parse_module(ts: &mut Tokens) -> Result<Module, LangError> {
             Some(_) => {
                 let (tok, l) = ts.advance().unwrap();
                 return Err(LangError::UnexpectedToken {
-                    expected: "type, capability, intrinsic, or goal declaration".into(),
+                    expected: "import, type, capability, intrinsic, or goal declaration".into(),
                     got: token_display(&tok),
                     line: l,
                 });
@@ -180,6 +183,7 @@ fn parse_module(ts: &mut Tokens) -> Result<Module, LangError> {
 
     Ok(Module {
         version,
+        imports,
         types,
         capabilities,
         intrinsics,
@@ -219,6 +223,34 @@ fn parse_version_number(ts: &mut Tokens, _hint_line: usize) -> Result<String, La
             expected: "version number".into(),
         }),
     }
+}
+
+// ---------------------------------------------------------------------------
+// Import declaration
+// ---------------------------------------------------------------------------
+
+/// `import IDENT : "sha256:<64 hex chars>" ;`
+fn parse_import_decl(ts: &mut Tokens) -> Result<ImportDecl, LangError> {
+    ts.expect_token(&Token::Import, "import")?;
+    let name = ts.expect_ident()?;
+    ts.expect_token(&Token::Colon, "':'")?;
+    let hash = match ts.advance() {
+        Some((Token::StringLit(s), _)) => s,
+        Some((tok, line)) => {
+            return Err(LangError::UnexpectedToken {
+                expected: "hash string literal (\"sha256:...\")".into(),
+                got: token_display(&tok),
+                line,
+            })
+        }
+        None => {
+            return Err(LangError::UnexpectedEof {
+                expected: "hash string literal".into(),
+            })
+        }
+    };
+    ts.expect_token(&Token::Semicolon, "';'")?;
+    Ok(ImportDecl { name, hash })
 }
 
 // ---------------------------------------------------------------------------

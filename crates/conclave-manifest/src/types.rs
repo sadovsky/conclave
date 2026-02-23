@@ -7,6 +7,10 @@ pub struct Manifest {
     pub target: Target,
     pub toolchain: Toolchain,
     pub capability_bindings: BTreeMap<String, CapabilityBinding>,
+    /// Module import bindings: import name → plan_ir_hash of the imported sub-goal.
+    /// Populated by the sealer when the Plan IR declares `imports`.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub module_bindings: BTreeMap<String, String>,
     pub scheduler_policy: SchedulerPolicy,
     pub determinism: Determinism,
     pub observability: Observability,

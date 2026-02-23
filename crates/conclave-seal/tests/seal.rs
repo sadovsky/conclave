@@ -11,6 +11,7 @@ fn fixture_ir() -> PlanIr {
             source_fingerprint:
                 "sha256:0000000000000000000000000000000000000000000000000000000000000000".into(),
         },
+        imports: BTreeMap::new(),
         types: BTreeMap::new(),
         goals: vec![],
         nodes: vec![],
@@ -44,6 +45,7 @@ fn fixture_manifest_template(plan_ir_hash: &str) -> Manifest {
                 .into(),
         },
         capability_bindings: BTreeMap::new(),
+        module_bindings: BTreeMap::new(),
         scheduler_policy: SchedulerPolicy {
             strategy: "bounded_parallel_map".into(),
             max_inflight: 1,

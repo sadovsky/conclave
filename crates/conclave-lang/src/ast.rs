@@ -1,15 +1,28 @@
 /// A complete parsed module (one `.conclave` file).
 ///
 /// After normalization:
+/// - `imports` are sorted by `name`.
 /// - `types`, `capabilities`, `intrinsics` are sorted by `name`/`alias`.
 /// - All signatures are in canonical form: `fetch(Url)->Html` (no whitespace).
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Module {
     pub version: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub imports: Vec<ImportDecl>,
     pub types: Vec<TypeDecl>,
     pub capabilities: Vec<CapDecl>,
     pub intrinsics: Vec<IntrinsicDecl>,
     pub goals: Vec<GoalDecl>,
+}
+
+/// An `import Name: "sha256:<64 hex chars>";` declaration.
+///
+/// The hash is a content-addressed Plan IR (the imported sub-goal).
+/// The normalizer validates that the hash is well-formed.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct ImportDecl {
+    pub name: String,
+    pub hash: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]

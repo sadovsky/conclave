@@ -44,6 +44,7 @@ fn embedded_store_empty_bundle() {
             source_fingerprint:
                 "sha256:0000000000000000000000000000000000000000000000000000000000000000".into(),
         },
+        imports: BTreeMap::new(),
         types: BTreeMap::new(),
         goals: vec![],
         nodes: vec![],
@@ -76,6 +77,7 @@ fn embedded_store_empty_bundle() {
                 .into(),
         },
         capability_bindings: BTreeMap::new(),
+        module_bindings: BTreeMap::new(),
         scheduler_policy: SchedulerPolicy {
             strategy: "bounded_parallel_map".into(),
             max_inflight: 2,

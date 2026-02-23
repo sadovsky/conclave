@@ -384,6 +384,7 @@ impl<'a> LowerState<'a> {
             },
             constraints: Vec::new(),
             meta: None,
+            import_subgraph_id: None,
         };
 
         self.edges.extend(input_edges);
@@ -502,6 +503,7 @@ impl<'a> LowerState<'a> {
             },
             constraints: Vec::new(),
             meta: None,
+            import_subgraph_id: None,
         };
 
         // If this node has no incoming edges from within the graph, it's an
@@ -667,12 +669,19 @@ impl<'a> LowerState<'a> {
             );
         }
 
+        let imports: BTreeMap<String, String> = module
+            .imports
+            .iter()
+            .map(|imp| (imp.name.clone(), imp.hash.clone()))
+            .collect();
+
         PlanIr {
             conclave_ir_version: "0.1".into(),
             module: IrModule {
                 name: module.goals[0].name.clone(),
                 source_fingerprint: source_fp,
             },
+            imports,
             types,
             goals: vec![goal_goal],
             nodes: self.nodes,

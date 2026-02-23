@@ -12,6 +12,10 @@ pub struct Node {
     /// Present for parsing; excluded from hashing via canonicalize_plan_ir.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub meta: Option<serde_json::Value>,
+    /// Attribution tag: the plan_ir_hash of the imported module this node came from.
+    /// Set by the lowerer when expanding an `import` declaration.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub import_subgraph_id: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]

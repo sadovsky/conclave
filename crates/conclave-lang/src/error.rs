@@ -32,4 +32,7 @@ pub enum LangError {
 
     #[error("lowering requires url_count > 0 for map constructs")]
     MapRequiresUrlCount,
+
+    #[error("invalid import hash for '{name}': '{hash}' (must be sha256:<64 hex chars>)")]
+    InvalidImportHash { name: String, hash: String },
 }

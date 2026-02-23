@@ -48,6 +48,7 @@ fn fixture_manifest() -> Manifest {
                 .into(),
         },
         capability_bindings: bindings,
+        module_bindings: BTreeMap::new(),
         scheduler_policy: SchedulerPolicy {
             strategy: "bounded_parallel_map".into(),
             max_inflight: 2,
@@ -100,6 +101,7 @@ fn fixture_plan_ir() -> PlanIr {
             source_fingerprint:
                 "sha256:0000000000000000000000000000000000000000000000000000000000000000".into(),
         },
+        imports: BTreeMap::new(),
         types: BTreeMap::new(),
         goals: vec![],
         nodes: vec![Node {
@@ -117,6 +119,7 @@ fn fixture_plan_ir() -> PlanIr {
                 url_index: Some(0),
             },
             constraints: vec![],
+            import_subgraph_id: None,
             meta: None,
         }],
         edges: vec![],
@@ -173,6 +176,7 @@ fn seal_rejects_missing_capability_binding() {
             url_index: None,
         },
         constraints: vec![],
+        import_subgraph_id: None,
         meta: None,
     });
     assert!(matches!(

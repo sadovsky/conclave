@@ -5,6 +5,7 @@ use crate::error::LangError;
 pub enum Token {
     // --- Keywords ---
     Version,
+    Import,
     Type,
     Capability,
     Intrinsic,
@@ -219,6 +220,7 @@ pub fn tokenize(input: &str) -> Result<Vec<Spanned>, LangError> {
 fn keyword_or_ident(word: &str) -> Token {
     match word {
         "version" => Token::Version,
+        "import" => Token::Import,
         "type" => Token::Type,
         "capability" => Token::Capability,
         "intrinsic" => Token::Intrinsic,
