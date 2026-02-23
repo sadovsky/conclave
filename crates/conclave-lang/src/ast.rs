@@ -88,6 +88,25 @@ pub enum Stmt {
         binder: String,
         body: Vec<Stmt>,
     },
+    /// `if COND { true_body } else { false_body }`
+    If {
+        condition: Expr,
+        true_body: Vec<Stmt>,
+        false_body: Vec<Stmt>,
+    },
+    /// `reduce LIST as BINDER into ACCUM { body }`
+    /// Body must end with `Stmt::Assign { name: ACCUM, .. }`.
+    Reduce {
+        list: String,
+        binder: String,
+        accum: String,
+        body: Vec<Stmt>,
+    },
+    /// `ACCUM = EXPR;` — accumulator reassignment inside a `reduce` body.
+    Assign {
+        name: String,
+        expr: Expr,
+    },
     Emit {
         expr: Expr,
     },
@@ -102,6 +121,8 @@ pub enum Expr {
     Ident { name: String },
     StringLit { value: String },
     Call { name: String, args: Vec<Expr> },
+    /// `pure { CALL }` — inline intrinsic-only computation block.
+    Pure { body: Box<Expr> },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]

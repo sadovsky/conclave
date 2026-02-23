@@ -18,6 +18,11 @@ pub enum Token {
     Return,
     Constraints,
     Where,
+    If,
+    Else,
+    Reduce,
+    Into,
+    Pure,
 
     // --- Punctuation ---
     LBrace,
@@ -233,6 +238,11 @@ fn keyword_or_ident(word: &str) -> Token {
         "return" => Token::Return,
         "constraints" => Token::Constraints,
         "where" => Token::Where,
+        "if" => Token::If,
+        "else" => Token::Else,
+        "reduce" => Token::Reduce,
+        "into" => Token::Into,
+        "pure" => Token::Pure,
         _ => Token::Ident(word.to_string()),
     }
 }

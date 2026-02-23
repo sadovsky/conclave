@@ -35,4 +35,13 @@ pub enum LangError {
 
     #[error("invalid import hash for '{name}': '{hash}' (must be sha256:<64 hex chars>)")]
     InvalidImportHash { name: String, hash: String },
+
+    #[error("pure block contains capability '{0}': only intrinsics are allowed")]
+    PureBlockContainsCapability(String),
+
+    #[error("reduce body must end with '{0} = <expr>;' accumulator assignment")]
+    ReduceBodyMissingAssign(String),
+
+    #[error("goal '{0}' not found in module")]
+    GoalNotFound(String),
 }

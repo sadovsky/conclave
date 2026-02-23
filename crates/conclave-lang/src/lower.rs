@@ -33,17 +33,55 @@ pub struct LowerOutput {
 
 /// Lower a Conclave v0.1 source string to Plan IR.
 ///
-/// `url_count` is the compile-time list length used to expand `map` constructs.
-/// v0.1 decision: require list length as lowering input.
+/// Lowers the **first** goal in the file.
+/// `url_count` is the compile-time list length used to expand `map`/`reduce` constructs.
 pub fn lower(source: &str, url_count: usize) -> Result<LowerOutput, LangError> {
     let normalized_source = source.replace("\r\n", "\n").replace('\r', "\n");
     let module = parse(&normalized_source)?;
     let module = normalize(module)?;
 
-    let source_hash = sha256_str(&normalized_source).to_string();
-    let ast_h = ast_hash(&module).to_string();
-
     let goal_decl = module.goals.first().ok_or(LangError::NoGoals)?;
+    lower_goal_from_module(&module, goal_decl, &normalized_source, url_count)
+}
+
+/// Lower a named goal from the source string.
+pub fn lower_named(source: &str, goal_name: &str, url_count: usize) -> Result<LowerOutput, LangError> {
+    let normalized_source = source.replace("\r\n", "\n").replace('\r', "\n");
+    let module = parse(&normalized_source)?;
+    let module = normalize(module)?;
+
+    let goal_decl = module
+        .goals
+        .iter()
+        .find(|g| g.name == goal_name)
+        .ok_or_else(|| LangError::GoalNotFound(goal_name.to_string()))?;
+    lower_goal_from_module(&module, goal_decl, &normalized_source, url_count)
+}
+
+/// Lower all goals in the source string, returning one `LowerOutput` per goal.
+pub fn lower_all(source: &str, url_count: usize) -> Result<Vec<LowerOutput>, LangError> {
+    let normalized_source = source.replace("\r\n", "\n").replace('\r', "\n");
+    let module = parse(&normalized_source)?;
+    let module = normalize(module)?;
+
+    if module.goals.is_empty() {
+        return Err(LangError::NoGoals);
+    }
+    module
+        .goals
+        .iter()
+        .map(|g| lower_goal_from_module(&module, g, &normalized_source, url_count))
+        .collect()
+}
+
+fn lower_goal_from_module(
+    module: &Module,
+    goal_decl: &GoalDecl,
+    normalized_source: &str,
+    url_count: usize,
+) -> Result<LowerOutput, LangError> {
+    let source_hash = sha256_str(normalized_source).to_string();
+    let ast_h = ast_hash(module).to_string();
 
     // Build lookup maps for cap/intrinsic declarations.
     let cap_map: BTreeMap<&str, &CapDecl> = module
@@ -58,10 +96,9 @@ pub fn lower(source: &str, url_count: usize) -> Result<LowerOutput, LangError> {
         .collect();
 
     let mut state = LowerState::new(goal_decl.name.clone(), url_count, cap_map, intr_map);
-
     state.lower_goal(goal_decl)?;
 
-    let plan_ir = state.build_plan_ir(&module, &normalized_source);
+    let plan_ir = state.build_plan_ir(module, goal_decl, normalized_source);
     let plan_ir_hash = conclave_ir::compute_plan_ir_hash(&plan_ir).to_string();
 
     Ok(LowerOutput {
@@ -84,7 +121,7 @@ enum Symbol {
         port: String,
         type_name: String,
     },
-    /// The URL binder from a `map urls as url { ... }` at a given url_index.
+    /// The URL binder from a `map`/`reduce` at a given url_index.
     UrlParam { url_index: u32 },
 }
 
@@ -174,6 +211,18 @@ impl<'a> LowerState<'a> {
             Stmt::Map { list, binder, body } => {
                 self.lower_map(list, binder, body, scope, url_index)?
             }
+            Stmt::If {
+                condition,
+                true_body,
+                false_body,
+            } => self.lower_if(condition, true_body, false_body, scope, url_index)?,
+            Stmt::Reduce {
+                list,
+                binder,
+                accum,
+                body,
+            } => self.lower_reduce(list, binder, accum, body, scope, url_index)?,
+            Stmt::Assign { name, expr } => self.lower_assign(name, expr, scope, url_index)?,
             Stmt::Emit { expr } => self.lower_emit(expr, scope, url_index)?,
             Stmt::Return { expr } => self.lower_return(expr, scope, url_index)?,
         }
@@ -246,6 +295,268 @@ impl<'a> LowerState<'a> {
         Ok(())
     }
 
+    // `if COND { true_body } else { false_body }`
+    //
+    // Lowers to:
+    // - A condition node (CapabilityCall or Intrinsic)
+    // - A Control node `conditional_branch` with input=condition, outputs: branch_true/branch_false
+    // - Two Subgraphs (branch_true, branch_false) containing the body nodes
+    // Emits from both branches are collected; the runtime decides which fires.
+    fn lower_if(
+        &mut self,
+        condition: &Expr,
+        true_body: &[Stmt],
+        false_body: &[Stmt],
+        scope: &mut Scope,
+        url_index: Option<u32>,
+    ) -> Result<(), LangError> {
+        let branch_counter = self.nodes.len();
+        let ui_label = url_index
+            .map(|u| u.to_string())
+            .unwrap_or_else(|| "none".into());
+
+        // Lower the condition expression to a node.
+        let cond_binder = format!("_if_cond_{}", branch_counter);
+        let (cond_node_id, cond_out_port, cond_out_type) =
+            self.lower_call_node(condition, scope, url_index, &cond_binder)?;
+
+        // Build a Control "conditional_branch" node that reads the condition.
+        let gate_key = format!("{}.if_gate.{}.{}", self.goal_name, branch_counter, ui_label);
+        let gate_id = stable_node_id(&gate_key);
+
+        let gate_edge_placeholder = Edge {
+            edge_id: "placeholder".into(),
+            from: EdgeEndpoint {
+                node_id: cond_node_id.clone(),
+                port: cond_out_port.clone(),
+            },
+            to: EdgeEndpoint {
+                node_id: gate_id.clone(),
+                port: "condition".into(),
+            },
+        };
+        let gate_edge_id = compute_edge_id(&gate_edge_placeholder).to_string();
+        let gate_edge = Edge {
+            edge_id: gate_edge_id.clone(),
+            ..gate_edge_placeholder
+        };
+
+        let gate_node = Node {
+            node_id: gate_id.clone(),
+            kind: NodeKind::Control,
+            op: Op {
+                name: "conditional_branch".into(),
+                signature: format!("conditional_branch({})->Bool", cond_out_type),
+            },
+            inputs: vec![InputPort {
+                port: "condition".into(),
+                type_name: cond_out_type,
+                source: Some(EdgeRef {
+                    edge_id: gate_edge_id,
+                }),
+            }],
+            outputs: vec![
+                OutputPort {
+                    port: "branch_true".into(),
+                    type_name: "Bool".into(),
+                },
+                OutputPort {
+                    port: "branch_false".into(),
+                    type_name: "Bool".into(),
+                },
+            ],
+            attrs: NodeAttrs {
+                determinism_profile: DeterminismProfile::Fixed,
+                cost_hints: None,
+                url_index,
+            },
+            constraints: Vec::new(),
+            meta: None,
+            import_subgraph_id: None,
+        };
+        self.edges.push(gate_edge);
+        self.nodes.push(gate_node);
+
+        // Lower true branch.
+        let nodes_before_true = self.nodes.len();
+        let mut true_scope = scope.child_with_gate(&gate_id, "branch_true");
+        self.lower_stmts(true_body, &mut true_scope, url_index)?;
+        let true_node_ids: Vec<String> = self.nodes[nodes_before_true..]
+            .iter()
+            .map(|n| n.node_id.clone())
+            .collect();
+
+        // Lower false branch.
+        let nodes_before_false = self.nodes.len();
+        let mut false_scope = scope.child_with_gate(&gate_id, "branch_false");
+        self.lower_stmts(false_body, &mut false_scope, url_index)?;
+        let false_node_ids: Vec<String> = self.nodes[nodes_before_false..]
+            .iter()
+            .map(|n| n.node_id.clone())
+            .collect();
+
+        // Register subgraphs.
+        let true_sg_id =
+            compute_stable_id("subgraph", &format!("{}.if_true.{}", self.goal_name, branch_counter))
+                .to_string();
+        self.subgraphs.push(Subgraph {
+            subgraph_id: true_sg_id,
+            kind: "conditional_true".into(),
+            nodes: true_node_ids,
+            constraints: Vec::new(),
+        });
+
+        let false_sg_id =
+            compute_stable_id("subgraph", &format!("{}.if_false.{}", self.goal_name, branch_counter))
+                .to_string();
+        self.subgraphs.push(Subgraph {
+            subgraph_id: false_sg_id,
+            kind: "conditional_false".into(),
+            nodes: false_node_ids,
+            constraints: Vec::new(),
+        });
+
+        Ok(())
+    }
+
+    // `reduce LIST as BINDER into ACCUM { body }`
+    //
+    // Unrolls into a sequential chain for each list item (url_index 0..url_count).
+    // Each iteration's body must contain `Stmt::Assign { name: accum, .. }` which
+    // produces the accumulator value fed into the next iteration.
+    fn lower_reduce(
+        &mut self,
+        list: &str,
+        binder: &str,
+        accum: &str,
+        body: &[Stmt],
+        parent_scope: &mut Scope,
+        _parent_url_index: Option<u32>,
+    ) -> Result<(), LangError> {
+        if self.url_count == 0 {
+            return Err(LangError::MapRequiresUrlCount);
+        }
+
+        // The accumulator symbol: starts as a special "init" node that the
+        // runtime provides the zero value for.
+        let init_key = format!("{}.reduce_init.{}", self.goal_name, list);
+        let init_id = stable_node_id(&init_key);
+        let init_node = Node {
+            node_id: init_id.clone(),
+            kind: NodeKind::Control,
+            op: Op {
+                name: "reduce_init".into(),
+                signature: "reduce_init()->Any".into(),
+            },
+            inputs: vec![],
+            outputs: vec![OutputPort {
+                port: "output".into(),
+                type_name: "Any".into(),
+            }],
+            attrs: NodeAttrs {
+                determinism_profile: DeterminismProfile::Fixed,
+                cost_hints: None,
+                url_index: None,
+            },
+            constraints: Vec::new(),
+            meta: None,
+            import_subgraph_id: None,
+        };
+        self.entry_nodes.push(init_id.clone());
+        self.nodes.push(init_node);
+
+        // Current accumulator symbol — starts pointing to init_node.
+        let mut acc_sym = Symbol::NodePort {
+            node_id: init_id,
+            port: "output".into(),
+            type_name: "Any".into(),
+        };
+
+        let mut reduce_node_ids: Vec<String> = Vec::new();
+        let nodes_before = self.nodes.len();
+
+        for i in 0..self.url_count {
+            let ui = i as u32;
+            let mut child_scope = Scope::new();
+            child_scope.set(binder, Symbol::UrlParam { url_index: ui });
+            child_scope.set(accum, acc_sym.clone());
+
+            let nodes_before_iter = self.nodes.len();
+            self.lower_stmts_reduce(body, &mut child_scope, Some(ui), accum)?;
+
+            // The last node added should be the assignment result.
+            let new_nodes = &self.nodes[nodes_before_iter..];
+            if let Some(last) = new_nodes.last() {
+                // Update acc_sym to point to the assignment node's output.
+                acc_sym = Symbol::NodePort {
+                    node_id: last.node_id.clone(),
+                    port: "output".into(),
+                    type_name: last.outputs.first().map(|o| o.type_name.clone()).unwrap_or_else(|| "Any".into()),
+                };
+                for n in new_nodes {
+                    reduce_node_ids.push(n.node_id.clone());
+                }
+            }
+        }
+
+        // Expose the final accumulator as a named binding in the parent scope.
+        parent_scope.set(accum, acc_sym);
+
+        // Register a subgraph for the reduce.
+        let subgraph_id =
+            compute_stable_id("subgraph", &format!("{}.reduce.{}", self.goal_name, list))
+                .to_string();
+        self.subgraphs.push(Subgraph {
+            subgraph_id,
+            kind: "reduce".into(),
+            nodes: reduce_node_ids,
+            constraints: Vec::new(),
+        });
+
+        Ok(())
+    }
+
+    /// Lower a reduce body — same as `lower_stmts` but allows `Stmt::Assign`
+    /// and validates the body ends with an assignment to `accum_name`.
+    fn lower_stmts_reduce(
+        &mut self,
+        stmts: &[Stmt],
+        scope: &mut Scope,
+        url_index: Option<u32>,
+        accum_name: &str,
+    ) -> Result<(), LangError> {
+        let has_assign = stmts.iter().any(|s| matches!(s, Stmt::Assign { name, .. } if name == accum_name));
+        if !has_assign {
+            return Err(LangError::ReduceBodyMissingAssign(accum_name.to_string()));
+        }
+        for stmt in stmts {
+            self.lower_stmt(stmt, scope, url_index)?;
+        }
+        Ok(())
+    }
+
+    // `ACCUM = EXPR;` — update accumulator in scope.
+    fn lower_assign(
+        &mut self,
+        name: &str,
+        expr: &Expr,
+        scope: &mut Scope,
+        url_index: Option<u32>,
+    ) -> Result<(), LangError> {
+        let binder_name = format!("_assign_{}_{}", name, self.nodes.len());
+        let (node_id, out_port, out_type) =
+            self.lower_call_node(expr, scope, url_index, &binder_name)?;
+        scope.set(
+            name,
+            Symbol::NodePort {
+                node_id,
+                port: out_port,
+                type_name: out_type,
+            },
+        );
+        Ok(())
+    }
+
     // `emit EXPR;`
     // EXPR can be a call (`emit fn(arg);`) or an identifier (`emit bound_name;`).
     fn lower_emit(
@@ -296,13 +607,39 @@ impl<'a> LowerState<'a> {
         Ok(())
     }
 
-    // `return CALL(collected);`
+    // `return EXPR;`
+    // EXPR is either:
+    //   - a Call (the common case: `return assemble_json(collected)`)
+    //   - an Ident bound to a node port (for `return acc;` in reduce)
     fn lower_return(
         &mut self,
         expr: &Expr,
         scope: &mut Scope,
         _url_index: Option<u32>,
     ) -> Result<(), LangError> {
+        // Handle `return ident;` where the ident is a bound NodePort (e.g. reduce accumulator).
+        if let Expr::Ident { name } = expr {
+            if name != "collected" {
+                let sym = scope
+                    .get(name)
+                    .cloned()
+                    .ok_or_else(|| LangError::UndefinedBinding(name.clone()))?;
+                match sym {
+                    Symbol::NodePort { node_id, .. } => {
+                        self.exit_node = Some(node_id);
+                        return Ok(());
+                    }
+                    Symbol::UrlParam { .. } => {
+                        return Err(LangError::UnexpectedToken {
+                            expected: "bound value in return".into(),
+                            got: "URL parameter cannot be returned directly".into(),
+                            line: 0,
+                        });
+                    }
+                }
+            }
+        }
+
         let (fn_name, _args) = match expr {
             Expr::Call { name, args } => (name.as_str(), args),
             Expr::Ident { name } if name == "collected" => {
@@ -397,7 +734,7 @@ impl<'a> LowerState<'a> {
     // Call-node creation
     // -----------------------------------------------------------------------
 
-    /// Lower a `Call { name, args }` expression into a node.
+    /// Lower a `Call { name, args }` or `Pure { body }` expression into a node.
     /// Returns (node_id, output_port_name, output_type_name).
     fn lower_call_node(
         &mut self,
@@ -406,8 +743,21 @@ impl<'a> LowerState<'a> {
         url_index: Option<u32>,
         binder: &str,
     ) -> Result<(String, String, String), LangError> {
-        let (fn_name, args) = match expr {
-            Expr::Call { name, args } => (name.as_str(), args.as_slice()),
+        // Unwrap `pure { CALL }` — validate the inner call is an intrinsic.
+        let (fn_name, args, pure_block) = match expr {
+            Expr::Call { name, args } => (name.as_str(), args.as_slice(), false),
+            Expr::Pure { body } => {
+                match body.as_ref() {
+                    Expr::Call { name, args } => (name.as_str(), args.as_slice(), true),
+                    _ => {
+                        return Err(LangError::UnexpectedToken {
+                            expected: "function call inside pure block".into(),
+                            got: "non-call expression".into(),
+                            line: 0,
+                        })
+                    }
+                }
+            }
             _ => {
                 return Err(LangError::UnexpectedToken {
                     expected: "function call".into(),
@@ -418,6 +768,11 @@ impl<'a> LowerState<'a> {
         };
 
         let (kind, signature, out_type) = self.resolve_fn(fn_name)?;
+
+        // `pure { ... }` blocks may only contain intrinsics, not capabilities.
+        if pure_block && kind == NodeKind::CapabilityCall {
+            return Err(LangError::PureBlockContainsCapability(fn_name.to_string()));
+        }
 
         let ui_label = url_index
             .map(|u| u.to_string())
@@ -529,22 +884,17 @@ impl<'a> LowerState<'a> {
                 .cloned()
                 .ok_or_else(|| LangError::UndefinedBinding(name.clone())),
             Expr::StringLit { value } => {
-                // String literal — produce a synthetic constant symbol.
-                // In v0.1 only identifiers and calls are used as args; string
-                // lits in positions other than constraint RHS are unusual.
-                // Return a special NodePort pointing to a nonexistent "const" node.
-                // (The lowerer does not create constant nodes in v0.1.)
                 Err(LangError::UnexpectedToken {
                     expected: "identifier or call expression".into(),
                     got: format!("string literal '{value}'"),
                     line: 0,
                 })
             }
-            Expr::Call { .. } => {
-                // Nested call — not supported in v0.1 args.
+            Expr::Call { .. } | Expr::Pure { .. } => {
+                // Nested call/pure — not supported as argument in v0.1.
                 Err(LangError::UnexpectedToken {
                     expected: "identifier".into(),
-                    got: "nested call expression".into(),
+                    got: "nested call or pure expression".into(),
                     line: 0,
                 })
             }
@@ -591,7 +941,7 @@ impl<'a> LowerState<'a> {
     // Plan IR assembly
     // -----------------------------------------------------------------------
 
-    fn build_plan_ir(mut self, module: &Module, source: &str) -> PlanIr {
+    fn build_plan_ir(mut self, module: &Module, goal_decl: &GoalDecl, source: &str) -> PlanIr {
         // Compute goal-level constraint refs.
         let goal_constraint_refs: Vec<ConstraintRef> = self
             .constraints
@@ -616,8 +966,8 @@ impl<'a> LowerState<'a> {
         // Build the Goal IR object.
         let goal_goal = Goal {
             goal_id: "placeholder".into(),
-            name: module.goals[0].name.clone(),
-            params: module.goals[0]
+            name: goal_decl.name.clone(),
+            params: goal_decl
                 .params
                 .iter()
                 .map(|p| GoalParam {
@@ -627,7 +977,7 @@ impl<'a> LowerState<'a> {
                 .collect(),
             returns: vec![GoalParam {
                 name: "result".into(),
-                type_name: module.goals[0].returns.clone(),
+                type_name: goal_decl.returns.clone(),
             }],
             constraints: goal_constraint_refs,
             accept: Vec::new(),
@@ -678,7 +1028,7 @@ impl<'a> LowerState<'a> {
         PlanIr {
             conclave_ir_version: "0.1".into(),
             module: IrModule {
-                name: module.goals[0].name.clone(),
+                name: goal_decl.name.clone(),
                 source_fingerprint: source_fp,
             },
             imports,
@@ -689,7 +1039,7 @@ impl<'a> LowerState<'a> {
             constraints: self.constraints,
             subgraphs: self.subgraphs,
             exports: Exports {
-                entry_goal: module.goals[0].name.clone(),
+                entry_goal: goal_decl.name.clone(),
             },
         }
     }
@@ -716,6 +1066,24 @@ impl Scope {
 
     fn set(&mut self, name: &str, sym: Symbol) {
         self.bindings.insert(name.to_string(), sym);
+    }
+
+    /// Create a child scope pre-populated with the current scope's bindings,
+    /// plus a special `__branch_gate` binding for `if` branching context.
+    fn child_with_gate(&self, gate_id: &str, branch: &str) -> Scope {
+        let mut child = Scope {
+            bindings: self.bindings.clone(),
+        };
+        // The gate output port is available as a condition signal in the branch.
+        child.set(
+            &format!("__branch_{}", branch),
+            Symbol::NodePort {
+                node_id: gate_id.to_string(),
+                port: branch.to_string(),
+                type_name: "Bool".into(),
+            },
+        );
+        child
     }
 }
 
