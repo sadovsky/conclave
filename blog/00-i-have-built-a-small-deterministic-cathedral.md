@@ -27,6 +27,8 @@ If anything, my scope is probably already too big. I might focus on its use for 
 # I Have Built A Small Deterministic Cathedral
 
 *And It Is Probably Unnecessary. But Also Possibly The Future.*
+*A Maniphesto Written by Man and Machine*
+
 
 Okay.
 
