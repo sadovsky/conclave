@@ -80,5 +80,21 @@ pub fn validate_seal(manifest: &Manifest, plan_ir: &PlanIr) -> Result<(), SealEr
         }
     }
 
+    // Rule 8: every import in Plan IR must have a corresponding module_bindings entry
+    // with the matching hash. This makes transitive dependencies explicit and auditable.
+    for (import_name, plan_ir_hash) in &plan_ir.imports {
+        match manifest.module_bindings.get(import_name) {
+            None => return Err(SealError::MissingModuleBinding(import_name.clone())),
+            Some(manifest_hash) if manifest_hash != plan_ir_hash => {
+                return Err(SealError::ModuleBindingHashMismatch {
+                    import_name: import_name.clone(),
+                    plan_ir_hash: plan_ir_hash.clone(),
+                    manifest_hash: manifest_hash.clone(),
+                });
+            }
+            _ => {}
+        }
+    }
+
     Ok(())
 }
