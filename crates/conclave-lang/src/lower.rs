@@ -11,6 +11,7 @@ use conclave_ir::{
 
 use crate::ast::*;
 use crate::error::LangError;
+use crate::module_cache::ModuleCache;
 use crate::normalize::{ast_hash, normalize};
 use crate::parser::parse;
 
@@ -36,41 +37,69 @@ pub struct LowerOutput {
 /// Lowers the **first** goal in the file.
 /// `url_count` is the compile-time list length used to expand `map`/`reduce` constructs.
 pub fn lower(source: &str, url_count: usize) -> Result<LowerOutput, LangError> {
+    lower_with_cache(source, url_count, None)
+}
+
+/// Lower with an optional module cache for `import` declaration expansion.
+///
+/// If the source contains `import` declarations and `cache` is `None`,
+/// returns `LangError::ImportResolutionRequired`.
+pub fn lower_with_cache(
+    source: &str,
+    url_count: usize,
+    cache: Option<&ModuleCache>,
+) -> Result<LowerOutput, LangError> {
     let normalized_source = source.replace("\r\n", "\n").replace('\r', "\n");
     let module = parse(&normalized_source)?;
     let module = normalize(module)?;
-
     let goal_decl = module.goals.first().ok_or(LangError::NoGoals)?;
-    lower_goal_from_module(&module, goal_decl, &normalized_source, url_count)
+    lower_goal_from_module(&module, goal_decl, &normalized_source, url_count, cache)
 }
 
 /// Lower a named goal from the source string.
 pub fn lower_named(source: &str, goal_name: &str, url_count: usize) -> Result<LowerOutput, LangError> {
+    lower_named_with_cache(source, goal_name, url_count, None)
+}
+
+/// Lower a named goal with an optional module cache.
+pub fn lower_named_with_cache(
+    source: &str,
+    goal_name: &str,
+    url_count: usize,
+    cache: Option<&ModuleCache>,
+) -> Result<LowerOutput, LangError> {
     let normalized_source = source.replace("\r\n", "\n").replace('\r', "\n");
     let module = parse(&normalized_source)?;
     let module = normalize(module)?;
-
     let goal_decl = module
         .goals
         .iter()
         .find(|g| g.name == goal_name)
         .ok_or_else(|| LangError::GoalNotFound(goal_name.to_string()))?;
-    lower_goal_from_module(&module, goal_decl, &normalized_source, url_count)
+    lower_goal_from_module(&module, goal_decl, &normalized_source, url_count, cache)
 }
 
 /// Lower all goals in the source string, returning one `LowerOutput` per goal.
 pub fn lower_all(source: &str, url_count: usize) -> Result<Vec<LowerOutput>, LangError> {
+    lower_all_with_cache(source, url_count, None)
+}
+
+/// Lower all goals with an optional module cache.
+pub fn lower_all_with_cache(
+    source: &str,
+    url_count: usize,
+    cache: Option<&ModuleCache>,
+) -> Result<Vec<LowerOutput>, LangError> {
     let normalized_source = source.replace("\r\n", "\n").replace('\r', "\n");
     let module = parse(&normalized_source)?;
     let module = normalize(module)?;
-
     if module.goals.is_empty() {
         return Err(LangError::NoGoals);
     }
     module
         .goals
         .iter()
-        .map(|g| lower_goal_from_module(&module, g, &normalized_source, url_count))
+        .map(|g| lower_goal_from_module(&module, g, &normalized_source, url_count, cache))
         .collect()
 }
 
@@ -79,9 +108,35 @@ fn lower_goal_from_module(
     goal_decl: &GoalDecl,
     normalized_source: &str,
     url_count: usize,
+    cache: Option<&ModuleCache>,
 ) -> Result<LowerOutput, LangError> {
     let source_hash = sha256_str(normalized_source).to_string();
     let ast_h = ast_hash(module).to_string();
+
+    // Collect the set of function names actually called in this goal's want block.
+    let mut called_names: std::collections::BTreeSet<String> =
+        std::collections::BTreeSet::new();
+    collect_call_names(&goal_decl.want.stmts, &mut called_names);
+
+    // Pre-resolve only imports that are actually called — unreferenced imports
+    // are recorded in plan_ir.imports but do not require a cache entry.
+    let mut resolved_imports: BTreeMap<String, conclave_ir::PlanIr> = BTreeMap::new();
+    for imp in &module.imports {
+        if !called_names.contains(&imp.name) {
+            continue; // declared but not used — no resolution needed
+        }
+        match cache {
+            Some(c) => {
+                let sub_ir = c
+                    .require(&imp.hash)
+                    .map_err(|_| LangError::ImportNotFound(imp.hash.clone()))?;
+                resolved_imports.insert(imp.name.clone(), sub_ir);
+            }
+            None => {
+                return Err(LangError::ImportResolutionRequired(imp.name.clone()));
+            }
+        }
+    }
 
     // Build lookup maps for cap/intrinsic declarations.
     let cap_map: BTreeMap<&str, &CapDecl> = module
@@ -95,7 +150,7 @@ fn lower_goal_from_module(
         .map(|i| (i.alias.as_str(), i))
         .collect();
 
-    let mut state = LowerState::new(goal_decl.name.clone(), url_count, cap_map, intr_map);
+    let mut state = LowerState::new(goal_decl.name.clone(), url_count, cap_map, intr_map, resolved_imports);
     state.lower_goal(goal_decl)?;
 
     let plan_ir = state.build_plan_ir(module, goal_decl, normalized_source);
@@ -134,6 +189,8 @@ struct LowerState<'a> {
     url_count: usize,
     cap_map: BTreeMap<&'a str, &'a CapDecl>,
     intr_map: BTreeMap<&'a str, &'a IntrinsicDecl>,
+    /// Fully resolved imported Plan IRs, keyed by the import alias.
+    resolved_imports: BTreeMap<String, conclave_ir::PlanIr>,
 
     nodes: Vec<Node>,
     edges: Vec<Edge>,
@@ -155,12 +212,14 @@ impl<'a> LowerState<'a> {
         url_count: usize,
         cap_map: BTreeMap<&'a str, &'a CapDecl>,
         intr_map: BTreeMap<&'a str, &'a IntrinsicDecl>,
+        resolved_imports: BTreeMap<String, conclave_ir::PlanIr>,
     ) -> Self {
         LowerState {
             goal_name,
             url_count,
             cap_map,
             intr_map,
+            resolved_imports,
             nodes: Vec::new(),
             edges: Vec::new(),
             subgraphs: Vec::new(),
@@ -767,6 +826,11 @@ impl<'a> LowerState<'a> {
             }
         };
 
+        // Check for import call BEFORE cap/intrinsic lookup.
+        if !pure_block && self.resolved_imports.contains_key(fn_name) {
+            return self.lower_import_call(fn_name, args, scope, url_index, binder);
+        }
+
         let (kind, signature, out_type) = self.resolve_fn(fn_name)?;
 
         // `pure { ... }` blocks may only contain intrinsics, not capabilities.
@@ -871,6 +935,203 @@ impl<'a> LowerState<'a> {
         self.nodes.push(node);
 
         Ok((node_id, out_port, out_type))
+    }
+
+    // -----------------------------------------------------------------------
+    // Import expansion
+    // -----------------------------------------------------------------------
+
+    /// Inline an imported sub-goal's Plan IR at the call site.
+    ///
+    /// Steps:
+    /// 1. Remap every node/edge ID from the sub-IR to avoid collisions.
+    /// 2. Copy nodes (updating `url_index` and tagging `import_subgraph_id`).
+    /// 3. Copy and remap internal edges, updating input-port sources.
+    /// 4. Wire the call-site argument to the sub-goal's entry node input(s).
+    /// 5. Return (exit_node_new_id, "output", out_type) like a normal call node.
+    fn lower_import_call(
+        &mut self,
+        import_name: &str,
+        args: &[Expr],
+        scope: &Scope,
+        url_index: Option<u32>,
+        binder: &str,
+    ) -> Result<(String, String, String), LangError> {
+        // Clone the sub-IR so we can inspect it without holding a borrow on self.
+        let sub_ir = self.resolved_imports[import_name].clone();
+        let import_hash = sub_ir
+            .module
+            .source_fingerprint
+            .clone(); // used as attribution tag below
+        // The canonical import_subgraph_id is the plan_ir_hash of the sub-IR.
+        let import_subgraph_id = conclave_ir::compute_plan_ir_hash(&sub_ir).to_string();
+
+        let sub_goal = sub_ir.goals.first().ok_or(LangError::NoGoals)?.clone();
+
+        // --- Step 1: Build node_id_remap ---
+        // Include url_index in the key so repeated inlining at different loop
+        // iterations produces distinct node IDs.
+        let ui_label = url_index
+            .map(|u| u.to_string())
+            .unwrap_or_else(|| "none".into());
+        let mut node_id_remap: BTreeMap<String, String> = BTreeMap::new();
+        for node in &sub_ir.nodes {
+            let new_key = format!(
+                "{}.import.{}.{}.{}.{}",
+                self.goal_name, binder, import_name, ui_label, node.node_id
+            );
+            node_id_remap.insert(node.node_id.clone(), stable_node_id(&new_key));
+        }
+
+        // --- Step 2: Remap edges and build (new_to_node_id, port) → new_edge_id map ---
+        let mut port_to_edge: BTreeMap<(String, String), String> = BTreeMap::new();
+        let mut remapped_edges: Vec<Edge> = Vec::new();
+        for edge in &sub_ir.edges {
+            let new_from = node_id_remap
+                .get(&edge.from.node_id)
+                .cloned()
+                .unwrap_or_else(|| edge.from.node_id.clone());
+            let new_to = node_id_remap
+                .get(&edge.to.node_id)
+                .cloned()
+                .unwrap_or_else(|| edge.to.node_id.clone());
+            let placeholder = Edge {
+                edge_id: "placeholder".into(),
+                from: EdgeEndpoint { node_id: new_from, port: edge.from.port.clone() },
+                to: EdgeEndpoint { node_id: new_to.clone(), port: edge.to.port.clone() },
+            };
+            let new_edge_id = compute_edge_id(&placeholder).to_string();
+            port_to_edge.insert((new_to, edge.to.port.clone()), new_edge_id.clone());
+            remapped_edges.push(Edge { edge_id: new_edge_id, ..placeholder });
+        }
+
+        // --- Step 3: Copy nodes with remapped IDs, updated url_index, and attribution tag ---
+        let entry_set: std::collections::BTreeSet<&str> =
+            sub_goal.entry_nodes.iter().map(|s| s.as_str()).collect();
+        let mut inlined_node_ids: Vec<String> = Vec::new();
+
+        for node in &sub_ir.nodes {
+            let new_id = node_id_remap[&node.node_id].clone();
+            inlined_node_ids.push(new_id.clone());
+            let is_entry = entry_set.contains(node.node_id.as_str());
+
+            let new_inputs: Vec<InputPort> = node
+                .inputs
+                .iter()
+                .map(|inp| {
+                    // Entry-node inputs will be wired in Step 4; leave source None for now.
+                    let source = if is_entry {
+                        None
+                    } else {
+                        port_to_edge
+                            .get(&(new_id.clone(), inp.port.clone()))
+                            .map(|eid| EdgeRef { edge_id: eid.clone() })
+                    };
+                    InputPort {
+                        port: inp.port.clone(),
+                        type_name: inp.type_name.clone(),
+                        source,
+                    }
+                })
+                .collect();
+
+            self.nodes.push(Node {
+                node_id: new_id,
+                kind: node.kind.clone(),
+                op: node.op.clone(),
+                inputs: new_inputs,
+                outputs: node.outputs.clone(),
+                attrs: NodeAttrs {
+                    determinism_profile: node.attrs.determinism_profile.clone(),
+                    cost_hints: node.attrs.cost_hints.clone(),
+                    url_index, // caller's url_index
+                },
+                constraints: Vec::new(),
+                meta: None,
+                import_subgraph_id: Some(import_subgraph_id.clone()),
+            });
+        }
+        self.edges.extend(remapped_edges);
+
+        // --- Step 4: Wire call-site argument to entry node input(s) ---
+        if let Some(first_arg) = args.first() {
+            let arg_sym = self.resolve_expr(first_arg, scope)?;
+
+            for entry_orig_id in &sub_goal.entry_nodes {
+                let entry_new_id = match node_id_remap.get(entry_orig_id) {
+                    Some(id) => id.clone(),
+                    None => continue,
+                };
+
+                match &arg_sym {
+                    Symbol::NodePort { node_id: src_id, port: src_port, .. } => {
+                        let placeholder = Edge {
+                            edge_id: "placeholder".into(),
+                            from: EdgeEndpoint {
+                                node_id: src_id.clone(),
+                                port: src_port.clone(),
+                            },
+                            to: EdgeEndpoint {
+                                node_id: entry_new_id.clone(),
+                                port: "in_0".into(),
+                            },
+                        };
+                        let wire_edge_id = compute_edge_id(&placeholder).to_string();
+                        let wire_edge = Edge { edge_id: wire_edge_id.clone(), ..placeholder };
+
+                        if let Some(en) =
+                            self.nodes.iter_mut().find(|n| n.node_id == entry_new_id)
+                        {
+                            if let Some(inp) =
+                                en.inputs.iter_mut().find(|p| p.port == "in_0")
+                            {
+                                inp.source = Some(EdgeRef { edge_id: wire_edge_id });
+                            }
+                        }
+                        self.edges.push(wire_edge);
+                    }
+                    Symbol::UrlParam { .. } => {
+                        // URL comes from the runtime's url_inputs; no edge needed.
+                        // url_index on the node's attrs already points to the right slot.
+                    }
+                }
+            }
+        }
+
+        // --- Step 5: Determine exit node and output type ---
+        let exit_orig_id = sub_goal.exit_nodes.first().ok_or_else(|| {
+            LangError::UnexpectedToken {
+                expected: "exit node in imported sub-goal".into(),
+                got: "imported Plan IR has no exit nodes".into(),
+                line: 0,
+            }
+        })?;
+        let exit_new_id = node_id_remap
+            .get(exit_orig_id)
+            .cloned()
+            .unwrap_or_else(|| exit_orig_id.clone());
+
+        let out_type = self
+            .nodes
+            .iter()
+            .find(|n| n.node_id == exit_new_id)
+            .and_then(|n| n.outputs.first())
+            .map(|o| o.type_name.clone())
+            .unwrap_or_else(|| "Any".into());
+
+        // --- Step 6: Register an "import" subgraph ---
+        let sg_key = format!(
+            "{}.import.{}.{}.{}",
+            self.goal_name, binder, import_name, ui_label
+        );
+        self.subgraphs.push(Subgraph {
+            subgraph_id: compute_stable_id("subgraph", &sg_key).to_string(),
+            kind: "import".into(),
+            nodes: inlined_node_ids,
+            constraints: Vec::new(),
+        });
+
+        Ok((exit_new_id, "output".into(), out_type))
     }
 
     // -----------------------------------------------------------------------
@@ -1084,6 +1345,49 @@ impl Scope {
             },
         );
         child
+    }
+}
+
+// ---------------------------------------------------------------------------
+// AST call-name scanner (for selective import pre-resolution)
+// ---------------------------------------------------------------------------
+
+/// Recursively collect every function-call name reachable from `stmts`.
+fn collect_call_names(stmts: &[Stmt], out: &mut std::collections::BTreeSet<String>) {
+    for stmt in stmts {
+        collect_call_names_in_stmt(stmt, out);
+    }
+}
+
+fn collect_call_names_in_stmt(stmt: &Stmt, out: &mut std::collections::BTreeSet<String>) {
+    match stmt {
+        Stmt::Let { expr, .. }
+        | Stmt::Emit { expr }
+        | Stmt::Return { expr }
+        | Stmt::Assign { expr, .. } => collect_call_names_in_expr(expr, out),
+        Stmt::Map { body, .. } | Stmt::Reduce { body, .. } => collect_call_names(body, out),
+        Stmt::If {
+            condition,
+            true_body,
+            false_body,
+        } => {
+            collect_call_names_in_expr(condition, out);
+            collect_call_names(true_body, out);
+            collect_call_names(false_body, out);
+        }
+    }
+}
+
+fn collect_call_names_in_expr(expr: &Expr, out: &mut std::collections::BTreeSet<String>) {
+    match expr {
+        Expr::Call { name, args } => {
+            out.insert(name.clone());
+            for arg in args {
+                collect_call_names_in_expr(arg, out);
+            }
+        }
+        Expr::Pure { body } => collect_call_names_in_expr(body, out),
+        Expr::Ident { .. } | Expr::StringLit { .. } => {}
     }
 }
 

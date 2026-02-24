@@ -1,5 +1,5 @@
 use conclave_ir::{validate_plan_ir, NodeKind};
-use conclave_lang::{lower, lower_all, lower_named};
+use conclave_lang::{lower, lower_all, lower_named, lower_with_cache, ModuleCache};
 
 fn source() -> &'static str {
     include_str!("fixtures/summarize_urls/source.conclave")
@@ -467,4 +467,242 @@ goal G(urls: List<String>) -> Json {
     assert_eq!(out.plan_ir.nodes.len(), 3, "expected 3 nodes");
     // 2 edges: fetch[0] → assemble.in_0, fetch[1] → assemble.in_1
     assert_eq!(out.plan_ir.edges.len(), 2, "expected 2 edges");
+}
+
+// ---------------------------------------------------------------------------
+// Phase 10: import expansion
+// ---------------------------------------------------------------------------
+
+/// Source for the sub-module: fetch + extract_text per URL, assemble into Json.
+static FETCH_EXTRACT_SRC: &str = r#"version 0.1;
+capability fetch: fetch(String) -> Html;
+capability extract_text: extract_text(Html) -> String;
+intrinsic assemble_json: assemble_json(List<String>) -> Json;
+goal FetchAndExtract(urls: List<String>) -> Json {
+  want {
+    map urls as url {
+      let html = fetch(url);
+      let text = extract_text(html);
+      emit text;
+    }
+    return assemble_json(collected);
+  }
+  constraints {
+    determinism.mode == "sealed_replay";
+  }
+}
+"#;
+
+/// Publish the sub-module to a temp cache and return (cache, hash).
+fn setup_sub_module_cache() -> (tempfile::TempDir, ModuleCache, String) {
+    let tmp = tempfile::tempdir().unwrap();
+    let cache = ModuleCache::new(tmp.path().join("modules"));
+    // Publish with url_count=1 (one URL per call site invocation).
+    let sub_out = lower(FETCH_EXTRACT_SRC, 1).unwrap();
+    let hash = cache.put(&sub_out.plan_ir).unwrap();
+    (tmp, cache, hash)
+}
+
+#[test]
+fn lower_import_expands_nodes() {
+    let (_tmp, cache, hash) = setup_sub_module_cache();
+
+    // Parent: calls FetchAndExtract(url) for each of 2 URLs, then summarizes.
+    let src = format!(
+        r#"version 0.1;
+import FetchAndExtract: "{hash}";
+capability summarize: summarize(String) -> String;
+intrinsic assemble_json: assemble_json(List<String>) -> Json;
+goal Summarize(urls: List<String>) -> Json {{
+  want {{
+    map urls as url {{
+      let text = FetchAndExtract(url);
+      emit summarize(text);
+    }}
+    return assemble_json(collected);
+  }}
+  constraints {{ determinism.mode == "sealed_replay"; }}
+}}
+"#
+    );
+
+    let out = lower_with_cache(&src, 2, Some(&cache)).unwrap();
+    validate_plan_ir(&out.plan_ir).unwrap();
+
+    // Per url_count=2 iteration:
+    //   FetchAndExtract expands to 3 nodes (fetch + extract_text + assemble_json)
+    //   Plus 1 summarize node
+    // = 2 * (3 + 1) + 1 final assemble_json = 9 nodes
+    assert_eq!(
+        out.plan_ir.nodes.len(),
+        9,
+        "expected 9 nodes (2 iters × 4 inlined + 1 outer assemble_json)"
+    );
+}
+
+#[test]
+fn lower_import_nodes_carry_subgraph_id() {
+    let (_tmp, cache, hash) = setup_sub_module_cache();
+
+    let src = format!(
+        r#"version 0.1;
+import FetchAndExtract: "{hash}";
+capability summarize: summarize(String) -> String;
+intrinsic assemble_json: assemble_json(List<String>) -> Json;
+goal Summarize(urls: List<String>) -> Json {{
+  want {{
+    map urls as url {{
+      let text = FetchAndExtract(url);
+      emit summarize(text);
+    }}
+    return assemble_json(collected);
+  }}
+  constraints {{ determinism.mode == "sealed_replay"; }}
+}}
+"#
+    );
+
+    let out = lower_with_cache(&src, 1, Some(&cache)).unwrap();
+
+    // All nodes from FetchAndExtract should have import_subgraph_id set.
+    let tagged: Vec<_> = out
+        .plan_ir
+        .nodes
+        .iter()
+        .filter(|n| n.import_subgraph_id.is_some())
+        .collect();
+    // url_count=1: FetchAndExtract expands to 3 nodes (fetch + extract_text + assemble_json).
+    assert_eq!(tagged.len(), 3, "expected 3 nodes with import_subgraph_id");
+
+    // The id should be the plan_ir_hash of the sub-module.
+    let sub_out = lower(FETCH_EXTRACT_SRC, 1).unwrap();
+    let expected_sg_id = sub_out.plan_ir_hash;
+    for n in &tagged {
+        assert_eq!(
+            n.import_subgraph_id.as_deref(),
+            Some(expected_sg_id.as_str()),
+            "import_subgraph_id mismatch on node {}",
+            n.node_id
+        );
+    }
+}
+
+#[test]
+fn lower_import_registers_subgraph() {
+    let (_tmp, cache, hash) = setup_sub_module_cache();
+
+    let src = format!(
+        r#"version 0.1;
+import FetchAndExtract: "{hash}";
+intrinsic assemble_json: assemble_json(List<Json>) -> Json;
+goal G(urls: List<String>) -> Json {{
+  want {{
+    map urls as url {{
+      let r = FetchAndExtract(url);
+      emit r;
+    }}
+    return assemble_json(collected);
+  }}
+}}
+"#
+    );
+
+    let out = lower_with_cache(&src, 2, Some(&cache)).unwrap();
+    let import_sgs: Vec<_> = out
+        .plan_ir
+        .subgraphs
+        .iter()
+        .filter(|sg| sg.kind == "import")
+        .collect();
+    // 2 iterations → 2 import subgraphs
+    assert_eq!(import_sgs.len(), 2, "expected 2 import subgraphs for 2 iterations");
+}
+
+#[test]
+fn lower_import_plan_ir_is_valid() {
+    let (_tmp, cache, hash) = setup_sub_module_cache();
+
+    let src = format!(
+        r#"version 0.1;
+import FetchAndExtract: "{hash}";
+capability summarize: summarize(String) -> String;
+intrinsic assemble_json: assemble_json(List<String>) -> Json;
+goal Summarize(urls: List<String>) -> Json {{
+  want {{
+    map urls as url {{
+      let text = FetchAndExtract(url);
+      emit summarize(text);
+    }}
+    return assemble_json(collected);
+  }}
+}}
+"#
+    );
+
+    let out = lower_with_cache(&src, 3, Some(&cache)).unwrap();
+    validate_plan_ir(&out.plan_ir).expect("expanded Plan IR must be structurally valid");
+}
+
+#[test]
+fn lower_import_hash_is_stable() {
+    let (_tmp, cache, hash) = setup_sub_module_cache();
+
+    let src = format!(
+        r#"version 0.1;
+import FetchAndExtract: "{hash}";
+capability summarize: summarize(String) -> String;
+intrinsic assemble_json: assemble_json(List<String>) -> Json;
+goal Summarize(urls: List<String>) -> Json {{
+  want {{
+    map urls as url {{
+      let text = FetchAndExtract(url);
+      emit summarize(text);
+    }}
+    return assemble_json(collected);
+  }}
+}}
+"#
+    );
+
+    let out1 = lower_with_cache(&src, 2, Some(&cache)).unwrap();
+    let out2 = lower_with_cache(&src, 2, Some(&cache)).unwrap();
+    assert_eq!(out1.plan_ir_hash, out2.plan_ir_hash);
+}
+
+#[test]
+fn lower_import_without_cache_errors() {
+    // lower() (no cache) on a source with an import should return ImportResolutionRequired.
+    let src = r#"version 0.1;
+import Foo: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+goal G(urls: List<String>) -> Json {
+  want { return Foo(urls); }
+}
+"#;
+    // Note: lower() calls lower_with_cache(_, _, None) which should error.
+    let result = lower(src, 1);
+    assert!(
+        matches!(result, Err(conclave_lang::LangError::ImportResolutionRequired(_))),
+        "expected ImportResolutionRequired"
+    );
+}
+
+#[test]
+fn lower_import_not_in_cache_errors() {
+    let (_tmp, cache, _hash) = setup_sub_module_cache();
+
+    let bad_hash = "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+    let src = format!(
+        r#"version 0.1;
+import Foo: "{bad_hash}";
+goal G(urls: List<String>) -> Json {{
+  want {{ return Foo(urls); }}
+}}
+"#
+    );
+
+    let result = lower_with_cache(&src, 1, Some(&cache));
+    assert!(
+        matches!(result, Err(conclave_lang::LangError::ImportNotFound(_))),
+        "expected ImportNotFound"
+    );
 }

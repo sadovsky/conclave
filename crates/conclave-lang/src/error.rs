@@ -44,4 +44,10 @@ pub enum LangError {
 
     #[error("goal '{0}' not found in module")]
     GoalNotFound(String),
+
+    #[error("import '{0}' cannot be resolved: no module cache provided")]
+    ImportResolutionRequired(String),
+
+    #[error("imported module not found in cache: '{0}'")]
+    ImportNotFound(String),
 }
