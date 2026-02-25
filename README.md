@@ -1,10 +1,12 @@
 # Conclave
 
-*AI Generated*
+*Human Generated*
 
-Conclave is a deterministic, agent-native workflow language built for a world where AI systems increasingly write and operate software. At its core is a purpose-built DSL that expresses intent as canonical graphs of plans and constraints—removing ambiguity, syntactic noise, and hidden state so both humans and agents can reason about structure precisely. Conclave then separates Plan (canonical structure), Seal (explicit capability version binding), and Build (artifact creation) into a disciplined pipeline that produces cryptographically identifiable, replayable workflow artifacts. The result is AI-powered automation that can evolve creatively during design but remains reproducible, auditable, and stable in execution—ideal for production systems where trust, traceability, and controlled change truly matter.
+Conclave is a deterministic, agent-native workflow language built for a world where AI systems increasingly write and operate software. At its core is a purpose-built DSL that expresses intent as graphs of plans and constraints: removing ambiguity, syntactic noise, and hidden state so both humans and agents can reason about structure (and code review) precisely. Conclave then separates Plan (structure), Seal (explicit capability version binding), and Build (artifact creation) into a pipeline that produces cryptographically identifiable, replayable workflow artifacts. The result is AI-powered automation that can evolve creatively during design but remains reproducible, auditable, and stable in execution: ideal for production systems where trust, traceability, and controlled change are important.
 
 **Intent-first, deterministic programming model for agentic systems.**
+
+*AI Generated*
 
 Conclave gives AI agents a substrate where they can be *powerful* and *auditable* at the same time. An agent generates a `.conclave` program. That program is lowered to a Plan IR, sealed into a content-addressed artifact, and run by a deterministic scheduler. Same inputs → identical output and execution trace. Every time.
 
