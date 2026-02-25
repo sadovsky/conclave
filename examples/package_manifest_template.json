@@ -1,0 +1,48 @@
+{
+  "conclave_manifest_version": "0.1",
+  "program": { "name": "package", "plan_ir_hash": "" },
+  "target": { "triple": "aarch64-apple-darwin", "os": "macos", "arch": "aarch64" },
+  "toolchain": {
+    "lowerer_hash":  "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "runtime_hash":  "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "stdlib_hash":   "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+  },
+  "capability_bindings": {
+    "conclave_lower(String)->Json": {
+      "capability_name": "conclave_lower",
+      "artifact_hash": "sha256:c1f3055553c4c331ff1f7cab8b0e4bfef9e3270711e36330ca324c34a3fd412f",
+      "determinism_profile": "replayable",
+      "trust": "sandboxed",
+      "config": {},
+      "signatures": null
+    }
+  },
+  "scheduler_policy": {
+    "strategy": "bounded_parallel_map",
+    "max_inflight": 2,
+    "ready_queue_order": ["url_index", "node_kind", "node_id"],
+    "node_kind_order": ["CONCLAVE_LOWER", "ASSEMBLE_JSON"],
+    "tie_breaker": { "kind": "stable", "seed": 0 }
+  },
+  "determinism": {
+    "mode": "sealed_replay",
+    "clock": "virtual",
+    "randomness": { "allowed": true, "seed": 0, "source": "ctr_drbg" },
+    "float": "strict",
+    "io_policy": {
+      "network": "replay_only",
+      "filesystem": "sandboxed",
+      "env": "frozen"
+    }
+  },
+  "observability": {
+    "trace_level": "deterministic",
+    "emit_scheduler_trace": true,
+    "emit_capability_metrics": true
+  },
+  "supply_chain": {
+    "artifact_store": "content_addressed",
+    "require_artifact_signatures": false,
+    "manifest_signature": null
+  }
+}
