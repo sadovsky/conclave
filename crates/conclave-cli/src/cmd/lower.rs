@@ -1,3 +1,4 @@
+use conclave_lang::ModuleCache;
 use std::path::PathBuf;
 
 #[derive(clap::Args)]
@@ -18,21 +19,29 @@ pub struct LowerArgs {
     /// Output canonical plan_ir.json (default: stdout).
     #[arg(long, short)]
     pub output: Option<PathBuf>,
+
+    /// Module cache directory for resolving `import` declarations.
+    /// Defaults to the platform cache dir (e.g. ~/Library/Caches/conclave/modules on macOS).
+    #[arg(long, value_name = "DIR")]
+    pub module_cache: Option<PathBuf>,
 }
 
 pub fn run(args: LowerArgs) -> anyhow::Result<()> {
     let source = std::fs::read_to_string(&args.input)
         .map_err(|e| anyhow::anyhow!("failed to read {}: {}", args.input.display(), e))?;
 
+    let cache_dir = args.module_cache.unwrap_or_else(super::module::default_module_cache_dir);
+    let cache = ModuleCache::new(cache_dir);
+
     match args.goal.as_deref() {
-        Some("all") => run_all(&source, args.url_count, args.output),
-        Some(name) => run_named(&source, name, args.url_count, args.output),
-        None => run_first(&source, args.url_count, args.output),
+        Some("all") => run_all(&source, args.url_count, &cache, args.output),
+        Some(name) => run_named(&source, name, args.url_count, &cache, args.output),
+        None => run_first(&source, args.url_count, &cache, args.output),
     }
 }
 
-fn run_first(source: &str, url_count: usize, output: Option<PathBuf>) -> anyhow::Result<()> {
-    let out = conclave_lang::lower(source, url_count)
+fn run_first(source: &str, url_count: usize, cache: &ModuleCache, output: Option<PathBuf>) -> anyhow::Result<()> {
+    let out = conclave_lang::lower_with_cache(source, url_count, Some(cache))
         .map_err(|e| anyhow::anyhow!("lowering failed: {e}"))?;
 
     conclave_ir::validate_plan_ir(&out.plan_ir)
@@ -45,8 +54,8 @@ fn run_first(source: &str, url_count: usize, output: Option<PathBuf>) -> anyhow:
     emit_plan_ir(&out.plan_ir, output)
 }
 
-fn run_named(source: &str, goal_name: &str, url_count: usize, output: Option<PathBuf>) -> anyhow::Result<()> {
-    let out = conclave_lang::lower_named(source, goal_name, url_count)
+fn run_named(source: &str, goal_name: &str, url_count: usize, cache: &ModuleCache, output: Option<PathBuf>) -> anyhow::Result<()> {
+    let out = conclave_lang::lower_named_with_cache(source, goal_name, url_count, Some(cache))
         .map_err(|e| anyhow::anyhow!("lowering failed: {e}"))?;
 
     conclave_ir::validate_plan_ir(&out.plan_ir)
@@ -60,8 +69,8 @@ fn run_named(source: &str, goal_name: &str, url_count: usize, output: Option<Pat
     emit_plan_ir(&out.plan_ir, output)
 }
 
-fn run_all(source: &str, url_count: usize, output: Option<PathBuf>) -> anyhow::Result<()> {
-    let outputs = conclave_lang::lower_all(source, url_count)
+fn run_all(source: &str, url_count: usize, cache: &ModuleCache, output: Option<PathBuf>) -> anyhow::Result<()> {
+    let outputs = conclave_lang::lower_all_with_cache(source, url_count, Some(cache))
         .map_err(|e| anyhow::anyhow!("lowering failed: {e}"))?;
 
     let mut canonical_list: Vec<serde_json::Value> = Vec::new();

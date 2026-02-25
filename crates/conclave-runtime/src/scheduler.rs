@@ -7,6 +7,7 @@ use crate::trace::TraceEmitter;
 use conclave_ir::{Node, NodeKind, PlanIr};
 use conclave_manifest::SchedulerPolicy;
 use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 
 // ---------------------------------------------------------------------------
 // Node execution state
@@ -18,6 +19,9 @@ enum NodeState {
     Ready,
     Running { completion_t: u64 },
     Completed,
+    /// Node was in a non-taken branch of a `conditional_branch` gate.
+    /// Treated as Completed for dependency resolution; never dispatched.
+    Skipped,
     Failed,
 }
 
@@ -28,7 +32,15 @@ impl PartialEq for NodeState {
             (NodeState::Pending, NodeState::Pending)
                 | (NodeState::Ready, NodeState::Ready)
                 | (NodeState::Completed, NodeState::Completed)
+                | (NodeState::Skipped, NodeState::Skipped)
         )
+    }
+}
+
+impl NodeState {
+    /// Returns true if this state counts as "done" for dependency resolution.
+    fn is_done(&self) -> bool {
+        matches!(self, NodeState::Completed | NodeState::Skipped)
     }
 }
 
@@ -117,23 +129,48 @@ impl Scheduler {
             .map(|n| (n.node_id.as_str(), n))
             .collect();
 
+        // Build gate → {true_nodes, false_nodes} maps for conditional_branch support.
+        // Each conditional_true/conditional_false subgraph records its gate_node_id.
+        let mut gate_to_true: BTreeMap<String, Vec<String>> = BTreeMap::new();
+        let mut gate_to_false: BTreeMap<String, Vec<String>> = BTreeMap::new();
+        for sg in &plan_ir.subgraphs {
+            if let Some(gate_id) = &sg.gate_node_id {
+                match sg.kind.as_str() {
+                    "conditional_true" => {
+                        gate_to_true
+                            .entry(gate_id.clone())
+                            .or_default()
+                            .extend(sg.nodes.iter().cloned());
+                    }
+                    "conditional_false" => {
+                        gate_to_false
+                            .entry(gate_id.clone())
+                            .or_default()
+                            .extend(sg.nodes.iter().cloned());
+                    }
+                    _ => {}
+                }
+            }
+        }
+
         // Main scheduler loop.
         loop {
-            // 1. Collect set of completed node_ids.
-            let completed: Vec<String> = nodes
+            // 1. Collect set of done node_ids (Completed or Skipped).
+            let done: BTreeSet<String> = nodes
                 .iter()
-                .filter(|(_, d)| matches!(d.state, NodeState::Completed))
+                .filter(|(_, d)| d.state.is_done())
                 .map(|(id, _)| id.clone())
                 .collect();
 
-            // 2. Promote Pending -> Ready when all deps are Completed.
+            // 2. Promote Pending -> Ready when all deps are done.
+            //    Never promote Skipped nodes.
             for (node_id, data) in nodes.iter_mut() {
                 if data.state != NodeState::Pending {
                     continue;
                 }
                 let all_done = deps_map
                     .get(node_id)
-                    .map(|deps| deps.iter().all(|d| completed.contains(d)))
+                    .map(|deps| deps.iter().all(|d| done.contains(d)))
                     .unwrap_or(true);
                 if all_done {
                     data.state = NodeState::Ready;
@@ -230,14 +267,10 @@ impl Scheduler {
                             extra_inputs,
                         )
                     } else {
+                        // Local (non-capability) node execution.
                         let dur = local_duration_for(ir_node);
-                        Ok((
-                            Value {
-                                type_name: "()".into(),
-                                data: vec![],
-                            },
-                            dur,
-                        ))
+                        let value = local_execute(ir_node, &nodes, &edge_source_map);
+                        Ok((value, dur))
                     };
 
                 let completion_t = match &result {
@@ -311,20 +344,61 @@ impl Scheduler {
             clock.advance_to(min_ct);
             trace.complete(clock.now(), &complete_node_id);
 
-            let data = nodes.get_mut(&complete_node_id).unwrap();
-            let result = data.pending_result.take().unwrap_or(Ok((
-                Value {
-                    type_name: "()".into(),
-                    data: vec![],
-                },
-                0,
-            )));
+            let result = {
+                let data = nodes.get_mut(&complete_node_id).unwrap();
+                data.pending_result.take().unwrap_or(Ok((
+                    Value {
+                        type_name: "()".into(),
+                        data: vec![],
+                    },
+                    0,
+                )))
+            };
             match result {
                 Ok((output, _)) => {
-                    data.output = Some(output);
-                    data.state = NodeState::Completed;
+                    // Check if this is a conditional_branch gate that needs to skip a branch.
+                    let ir_node = node_lookup[complete_node_id.as_str()];
+                    let is_gate = ir_node.kind == NodeKind::Control
+                        && ir_node.op.name == "conditional_branch";
+
+                    {
+                        let data = nodes.get_mut(&complete_node_id).unwrap();
+                        data.output = Some(output.clone());
+                        data.state = NodeState::Completed;
+                    }
+
+                    if is_gate {
+                        // Determine which branch to skip based on the condition input value.
+                        // The gate's condition input comes from an upstream node's output.
+                        let cond_true = gate_condition_is_true(
+                            ir_node,
+                            &nodes,
+                            &edge_source_map,
+                        );
+                        let skip_ids: Vec<String> = if cond_true {
+                            gate_to_false
+                                .get(&complete_node_id)
+                                .cloned()
+                                .unwrap_or_default()
+                        } else {
+                            gate_to_true
+                                .get(&complete_node_id)
+                                .cloned()
+                                .unwrap_or_default()
+                        };
+                        for skip_id in skip_ids {
+                            if let Some(d) = nodes.get_mut(&skip_id) {
+                                d.state = NodeState::Skipped;
+                                d.output = Some(Value {
+                                    type_name: "()".into(),
+                                    data: vec![],
+                                });
+                            }
+                        }
+                    }
                 }
                 Err(e) => {
+                    let data = nodes.get_mut(&complete_node_id).unwrap();
                     data.state = NodeState::Failed;
                     return Err(e);
                 }
@@ -337,6 +411,66 @@ impl Scheduler {
             .filter_map(|(id, d)| d.output.map(|v| (id, v)))
             .collect())
     }
+}
+
+/// Execute a local (non-CapabilityCall) node, returning its output Value.
+///
+/// Special cases:
+/// - `reduce_init`: returns a JSON null as the initial accumulator value.
+/// - `conditional_branch`: returns the condition boolean as bytes.
+/// - All others: returns unit `()`.
+fn local_execute(
+    node: &Node,
+    nodes: &BTreeMap<String, NodeData>,
+    edge_source_map: &BTreeMap<String, String>,
+) -> Value {
+    match node.op.name.as_str() {
+        "reduce_init" => Value {
+            type_name: "Any".into(),
+            data: b"null".to_vec(),
+        },
+        "conditional_branch" => {
+            // Read the upstream condition value and propagate it as a bool string.
+            let cond_bool = gate_condition_is_true(node, nodes, edge_source_map);
+            Value {
+                type_name: "Bool".into(),
+                data: if cond_bool { b"true".to_vec() } else { b"false".to_vec() },
+            }
+        }
+        _ => Value {
+            type_name: "()".into(),
+            data: vec![],
+        },
+    }
+}
+
+/// Determine whether a `conditional_branch` gate's condition is truthy.
+///
+/// Reads the upstream node's output through the gate's `condition` input edge.
+/// Returns `true` if the value bytes are non-empty and not equal to `b"false"`,
+/// `b"null"`, `b"0"`, or empty.
+fn gate_condition_is_true(
+    gate: &Node,
+    nodes: &BTreeMap<String, NodeData>,
+    edge_source_map: &BTreeMap<String, String>,
+) -> bool {
+    // Find the "condition" input port.
+    let cond_port = gate.inputs.iter().find(|p| p.port == "condition");
+    if let Some(port) = cond_port {
+        if let Some(source) = &port.source {
+            if let Some(upstream_id) = edge_source_map.get(&source.edge_id) {
+                if let Some(upstream_data) = nodes.get(upstream_id) {
+                    if let Some(output) = &upstream_data.output {
+                        let s = String::from_utf8_lossy(&output.data);
+                        // Falsy: empty, "false", "null", "0"
+                        return !matches!(s.trim(), "" | "false" | "null" | "0");
+                    }
+                }
+            }
+        }
+    }
+    // No condition found — default to true (take the true branch).
+    true
 }
 
 fn node_kind_priority(node: &Node, kind_priority: &BTreeMap<String, usize>) -> usize {

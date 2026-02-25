@@ -706,3 +706,97 @@ goal G(urls: List<String>) -> Json {{
         "expected ImportNotFound"
     );
 }
+
+// ---------------------------------------------------------------------------
+// Phase 11: Arity checking
+// ---------------------------------------------------------------------------
+
+#[test]
+fn lower_arity_mismatch_too_few_args() {
+    let src = r#"version 0.1;
+capability fetch: fetch(String) -> Html;
+intrinsic assemble_json: assemble_json(List<Html>) -> Json;
+goal G(urls: List<String>) -> Json {
+  want {
+    map urls as url {
+      let page = fetch();
+      emit page;
+    }
+    return assemble_json(collected);
+  }
+}
+"#;
+    let result = lower(src, 1);
+    match result {
+        Err(conclave_lang::LangError::ArityMismatch { fn_name, expected, got }) => {
+            assert_eq!(fn_name, "fetch");
+            assert_eq!(expected, 1);
+            assert_eq!(got, 0);
+        }
+        Err(e) => panic!("expected ArityMismatch, got: {e}"),
+        Ok(_) => panic!("expected ArityMismatch error, got Ok"),
+    }
+}
+
+#[test]
+fn lower_arity_mismatch_too_many_args() {
+    let src = r#"version 0.1;
+capability fetch: fetch(String) -> Html;
+intrinsic assemble_json: assemble_json(List<Html>) -> Json;
+goal G(urls: List<String>) -> Json {
+  want {
+    map urls as url {
+      let page = fetch(url, url);
+      emit page;
+    }
+    return assemble_json(collected);
+  }
+}
+"#;
+    let result = lower(src, 1);
+    match result {
+        Err(conclave_lang::LangError::ArityMismatch { fn_name, expected, got }) => {
+            assert_eq!(fn_name, "fetch");
+            assert_eq!(expected, 1);
+            assert_eq!(got, 2);
+        }
+        Err(e) => panic!("expected ArityMismatch, got: {e}"),
+        Ok(_) => panic!("expected ArityMismatch error, got Ok"),
+    }
+}
+
+#[test]
+fn lower_if_else_gate_node_id_set() {
+    // Each conditional_true/conditional_false subgraph must carry the gate_node_id
+    // of the conditional_branch Control node that owns it.
+    let out = lower(IF_ELSE_SRC, 1).unwrap();
+
+    let gate_ids: Vec<String> = out
+        .plan_ir
+        .nodes
+        .iter()
+        .filter(|n| matches!(n.kind, NodeKind::Control) && n.op.name == "conditional_branch")
+        .map(|n| n.node_id.clone())
+        .collect();
+
+    assert_eq!(gate_ids.len(), 1, "url_count=1 → 1 gate node");
+
+    let conditional_sgs: Vec<_> = out
+        .plan_ir
+        .subgraphs
+        .iter()
+        .filter(|sg| sg.kind.starts_with("conditional"))
+        .collect();
+
+    assert_eq!(conditional_sgs.len(), 2, "1 gate → 2 branch subgraphs");
+
+    for sg in &conditional_sgs {
+        assert_eq!(
+            sg.gate_node_id.as_deref(),
+            Some(gate_ids[0].as_str()),
+            "subgraph {} should link to gate {}",
+            sg.subgraph_id,
+            gate_ids[0]
+        );
+    }
+}

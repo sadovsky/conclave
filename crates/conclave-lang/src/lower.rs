@@ -348,6 +348,7 @@ impl<'a> LowerState<'a> {
             kind: "map".into(),
             nodes: map_node_ids,
             constraints: Vec::new(),
+            gate_node_id: None,
         };
         self.subgraphs.push(sg);
 
@@ -454,7 +455,8 @@ impl<'a> LowerState<'a> {
             .map(|n| n.node_id.clone())
             .collect();
 
-        // Register subgraphs.
+        // Register subgraphs — record the gate_node_id so the runtime can
+        // route execution to the correct branch.
         let true_sg_id =
             compute_stable_id("subgraph", &format!("{}.if_true.{}", self.goal_name, branch_counter))
                 .to_string();
@@ -463,6 +465,7 @@ impl<'a> LowerState<'a> {
             kind: "conditional_true".into(),
             nodes: true_node_ids,
             constraints: Vec::new(),
+            gate_node_id: Some(gate_id.clone()),
         });
 
         let false_sg_id =
@@ -473,6 +476,7 @@ impl<'a> LowerState<'a> {
             kind: "conditional_false".into(),
             nodes: false_node_ids,
             constraints: Vec::new(),
+            gate_node_id: Some(gate_id.clone()),
         });
 
         Ok(())
@@ -570,6 +574,7 @@ impl<'a> LowerState<'a> {
             kind: "reduce".into(),
             nodes: reduce_node_ids,
             constraints: Vec::new(),
+            gate_node_id: None,
         });
 
         Ok(())
@@ -836,6 +841,16 @@ impl<'a> LowerState<'a> {
         // `pure { ... }` blocks may only contain intrinsics, not capabilities.
         if pure_block && kind == NodeKind::CapabilityCall {
             return Err(LangError::PureBlockContainsCapability(fn_name.to_string()));
+        }
+
+        // Arity check: number of call-site arguments must match the signature.
+        let sig_args_check = parse_signature_args(&signature);
+        if args.len() != sig_args_check.len() {
+            return Err(LangError::ArityMismatch {
+                fn_name: fn_name.to_string(),
+                expected: sig_args_check.len(),
+                got: args.len(),
+            });
         }
 
         let ui_label = url_index
@@ -1129,6 +1144,7 @@ impl<'a> LowerState<'a> {
             kind: "import".into(),
             nodes: inlined_node_ids,
             constraints: Vec::new(),
+            gate_node_id: None,
         });
 
         Ok((exit_new_id, "output".into(), out_type))

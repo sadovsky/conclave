@@ -50,4 +50,11 @@ pub enum LangError {
 
     #[error("imported module not found in cache: '{0}'")]
     ImportNotFound(String),
+
+    #[error("arity mismatch calling '{fn_name}': expected {expected} argument(s), got {got}")]
+    ArityMismatch {
+        fn_name: String,
+        expected: usize,
+        got: usize,
+    },
 }
