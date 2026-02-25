@@ -82,6 +82,7 @@ fn token_eq(a: &Token, b: &Token) -> bool {
 fn token_display(tok: &Token) -> String {
     match tok {
         Token::Version => "version".into(),
+        Token::Import => "import".into(),
         Token::Type => "type".into(),
         Token::Capability => "capability".into(),
         Token::Intrinsic => "intrinsic".into(),
@@ -94,6 +95,11 @@ fn token_display(tok: &Token) -> String {
         Token::Return => "return".into(),
         Token::Constraints => "constraints".into(),
         Token::Where => "where".into(),
+        Token::If => "if".into(),
+        Token::Else => "else".into(),
+        Token::Reduce => "reduce".into(),
+        Token::Into => "into".into(),
+        Token::Pure => "pure".into(),
         Token::LBrace => "{".into(),
         Token::RBrace => "}".into(),
         Token::LParen => "(".into(),
@@ -155,6 +161,7 @@ fn parse_module(ts: &mut Tokens) -> Result<Module, LangError> {
     let version = parse_version_number(ts, line)?;
     ts.expect_token(&Token::Semicolon, "';' after version")?;
 
+    let mut imports: Vec<ImportDecl> = Vec::new();
     let mut types: Vec<TypeDecl> = Vec::new();
     let mut capabilities: Vec<CapDecl> = Vec::new();
     let mut intrinsics: Vec<IntrinsicDecl> = Vec::new();
@@ -162,6 +169,7 @@ fn parse_module(ts: &mut Tokens) -> Result<Module, LangError> {
 
     while !ts.at_end() {
         match ts.peek() {
+            Some(Token::Import) => imports.push(parse_import_decl(ts)?),
             Some(Token::Type) => types.push(parse_type_decl(ts)?),
             Some(Token::Capability) => capabilities.push(parse_cap_decl(ts)?),
             Some(Token::Intrinsic) => intrinsics.push(parse_intrinsic_decl(ts)?),
@@ -169,7 +177,7 @@ fn parse_module(ts: &mut Tokens) -> Result<Module, LangError> {
             Some(_) => {
                 let (tok, l) = ts.advance().unwrap();
                 return Err(LangError::UnexpectedToken {
-                    expected: "type, capability, intrinsic, or goal declaration".into(),
+                    expected: "import, type, capability, intrinsic, or goal declaration".into(),
                     got: token_display(&tok),
                     line: l,
                 });
@@ -180,6 +188,7 @@ fn parse_module(ts: &mut Tokens) -> Result<Module, LangError> {
 
     Ok(Module {
         version,
+        imports,
         types,
         capabilities,
         intrinsics,
@@ -219,6 +228,34 @@ fn parse_version_number(ts: &mut Tokens, _hint_line: usize) -> Result<String, La
             expected: "version number".into(),
         }),
     }
+}
+
+// ---------------------------------------------------------------------------
+// Import declaration
+// ---------------------------------------------------------------------------
+
+/// `import IDENT : "sha256:<64 hex chars>" ;`
+fn parse_import_decl(ts: &mut Tokens) -> Result<ImportDecl, LangError> {
+    ts.expect_token(&Token::Import, "import")?;
+    let name = ts.expect_ident()?;
+    ts.expect_token(&Token::Colon, "':'")?;
+    let hash = match ts.advance() {
+        Some((Token::StringLit(s), _)) => s,
+        Some((tok, line)) => {
+            return Err(LangError::UnexpectedToken {
+                expected: "hash string literal (\"sha256:...\")".into(),
+                got: token_display(&tok),
+                line,
+            })
+        }
+        None => {
+            return Err(LangError::UnexpectedEof {
+                expected: "hash string literal".into(),
+            })
+        }
+    };
+    ts.expect_token(&Token::Semicolon, "';'")?;
+    Ok(ImportDecl { name, hash })
 }
 
 // ---------------------------------------------------------------------------
@@ -381,24 +418,28 @@ fn parse_want_block(ts: &mut Tokens) -> Result<WantBlock, LangError> {
     Ok(WantBlock { stmts })
 }
 
-/// Parse a list of statements until `}`. `in_map` = true means we're inside
-/// a map body (Return is not allowed there).
-fn parse_stmt_list(ts: &mut Tokens, in_map: bool) -> Result<Vec<Stmt>, LangError> {
+/// Parse a list of statements until `}`.
+/// `in_loop` = true when inside a `map` or `reduce` body (Return not allowed).
+fn parse_stmt_list(ts: &mut Tokens, in_loop: bool) -> Result<Vec<Stmt>, LangError> {
     let mut stmts = Vec::new();
     loop {
         match ts.peek() {
             Some(Token::RBrace) | None => break,
             Some(Token::Let) => stmts.push(parse_let_stmt(ts)?),
             Some(Token::Map) => stmts.push(parse_map_stmt(ts)?),
+            Some(Token::If) => stmts.push(parse_if_stmt(ts)?),
+            Some(Token::Reduce) => stmts.push(parse_reduce_stmt(ts)?),
             Some(Token::Emit) => stmts.push(parse_emit_stmt(ts)?),
             Some(Token::Return) => {
                 stmts.push(parse_return_stmt(ts)?);
                 break; // return is always last
             }
+            // `IDENT = EXPR ;` inside reduce body
+            Some(Token::Ident(_)) if in_loop => stmts.push(parse_assign_stmt(ts)?),
             Some(tok) => {
                 let (tok, line) = ts.advance().unwrap();
                 return Err(LangError::UnexpectedToken {
-                    expected: "let, map, emit, or return".into(),
+                    expected: "let, map, reduce, if, emit, or return".into(),
                     got: token_display(&tok),
                     line,
                 });
@@ -428,6 +469,53 @@ fn parse_map_stmt(ts: &mut Tokens) -> Result<Stmt, LangError> {
     Ok(Stmt::Map { list, binder, body })
 }
 
+/// `if COND_CALL { true_body } else { false_body }`
+/// Both the `if` and `else` branches are required.
+fn parse_if_stmt(ts: &mut Tokens) -> Result<Stmt, LangError> {
+    ts.expect_token(&Token::If, "if")?;
+    let condition = parse_expr(ts)?;
+    ts.expect_token(&Token::LBrace, "'{' after if condition")?;
+    let true_body = parse_stmt_list(ts, true)?;
+    ts.expect_token(&Token::RBrace, "'}' closing if body")?;
+    ts.expect_token(&Token::Else, "else")?;
+    ts.expect_token(&Token::LBrace, "'{' after else")?;
+    let false_body = parse_stmt_list(ts, true)?;
+    ts.expect_token(&Token::RBrace, "'}' closing else body")?;
+    Ok(Stmt::If {
+        condition,
+        true_body,
+        false_body,
+    })
+}
+
+/// `reduce LIST as BINDER into ACCUM { body }`
+fn parse_reduce_stmt(ts: &mut Tokens) -> Result<Stmt, LangError> {
+    ts.expect_token(&Token::Reduce, "reduce")?;
+    let list = ts.expect_ident()?;
+    ts.expect_token(&Token::As, "as")?;
+    let binder = ts.expect_ident()?;
+    ts.expect_token(&Token::Into, "into")?;
+    let accum = ts.expect_ident()?;
+    ts.expect_token(&Token::LBrace, "'{' after reduce binder")?;
+    let body = parse_stmt_list(ts, true)?;
+    ts.expect_token(&Token::RBrace, "'}' closing reduce")?;
+    Ok(Stmt::Reduce {
+        list,
+        binder,
+        accum,
+        body,
+    })
+}
+
+/// `IDENT = EXPR ;` — accumulator reassignment inside reduce body.
+fn parse_assign_stmt(ts: &mut Tokens) -> Result<Stmt, LangError> {
+    let name = ts.expect_ident()?;
+    ts.expect_token(&Token::Equals, "'='")?;
+    let expr = parse_expr(ts)?;
+    ts.expect_token(&Token::Semicolon, "';'")?;
+    Ok(Stmt::Assign { name, expr })
+}
+
 fn parse_emit_stmt(ts: &mut Tokens) -> Result<Stmt, LangError> {
     ts.expect_token(&Token::Emit, "emit")?;
     let expr = parse_expr(ts)?;
@@ -446,15 +534,15 @@ fn parse_return_stmt(ts: &mut Tokens) -> Result<Stmt, LangError> {
 // Expressions
 // ---------------------------------------------------------------------------
 
-/// A call expression (used in `let`): must be a Call.
+/// A call or pure expression (used in `let` and `ACCUM =`): must be a Call or Pure block.
 fn parse_call_expr(ts: &mut Tokens) -> Result<Expr, LangError> {
     let expr = parse_expr(ts)?;
     match &expr {
-        Expr::Call { .. } => Ok(expr),
+        Expr::Call { .. } | Expr::Pure { .. } => Ok(expr),
         _ => {
             let line = ts.peek_line();
             Err(LangError::UnexpectedToken {
-                expected: "function call".into(),
+                expected: "function call or pure block".into(),
                 got: "non-call expression".into(),
                 line,
             })
@@ -492,6 +580,15 @@ fn parse_expr(ts: &mut Tokens) -> Result<Expr, LangError> {
                 unreachable!()
             };
             Ok(Expr::StringLit { value })
+        }
+        Some(Token::Pure) => {
+            ts.advance(); // consume 'pure'
+            ts.expect_token(&Token::LBrace, "'{' after pure")?;
+            let inner = parse_expr(ts)?;
+            ts.expect_token(&Token::RBrace, "'}' closing pure block")?;
+            Ok(Expr::Pure {
+                body: Box::new(inner),
+            })
         }
         Some(tok) => {
             let (tok, line) = ts.advance().unwrap();

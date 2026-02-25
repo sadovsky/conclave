@@ -29,6 +29,10 @@ use std::collections::BTreeMap;
 pub struct PlanIr {
     pub conclave_ir_version: String,
     pub module: Module,
+    /// Import declarations: import name → plan_ir_hash of the imported sub-goal.
+    /// Populated by the lowerer; empty for programs with no `import` declarations.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub imports: BTreeMap<String, String>,
     #[serde(default)]
     pub types: BTreeMap<String, TypeDef>,
     #[serde(default)]

@@ -48,6 +48,7 @@ fn fixture_manifest() -> Manifest {
                 .into(),
         },
         capability_bindings: bindings,
+        module_bindings: BTreeMap::new(),
         scheduler_policy: SchedulerPolicy {
             strategy: "bounded_parallel_map".into(),
             max_inflight: 2,
@@ -100,6 +101,7 @@ fn fixture_plan_ir() -> PlanIr {
             source_fingerprint:
                 "sha256:0000000000000000000000000000000000000000000000000000000000000000".into(),
         },
+        imports: BTreeMap::new(),
         types: BTreeMap::new(),
         goals: vec![],
         nodes: vec![Node {
@@ -117,6 +119,7 @@ fn fixture_plan_ir() -> PlanIr {
                 url_index: Some(0),
             },
             constraints: vec![],
+            import_subgraph_id: None,
             meta: None,
         }],
         edges: vec![],
@@ -173,6 +176,7 @@ fn seal_rejects_missing_capability_binding() {
             url_index: None,
         },
         constraints: vec![],
+        import_subgraph_id: None,
         meta: None,
     });
     assert!(matches!(
@@ -254,4 +258,51 @@ fn seal_rejects_signatures_required_with_no_accepted_keys() {
         validate_seal(&m, &fixture_plan_ir()),
         Err(SealError::SignatureRequiredButNoKeys(_))
     ));
+}
+
+#[test]
+fn seal_rejects_plan_ir_import_with_no_module_binding() {
+    let m = fixture_manifest();
+    let mut ir = fixture_plan_ir();
+    ir.imports.insert(
+        "FetchExtract".into(),
+        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
+    );
+    assert!(matches!(
+        validate_seal(&m, &ir),
+        Err(SealError::MissingModuleBinding(_))
+    ));
+}
+
+#[test]
+fn seal_rejects_module_binding_hash_mismatch() {
+    let mut m = fixture_manifest();
+    m.module_bindings.insert(
+        "FetchExtract".into(),
+        "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb".into(),
+    );
+    let mut ir = fixture_plan_ir();
+    ir.imports.insert(
+        "FetchExtract".into(),
+        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
+    );
+    assert!(matches!(
+        validate_seal(&m, &ir),
+        Err(SealError::ModuleBindingHashMismatch { .. })
+    ));
+}
+
+#[test]
+fn seal_accepts_matching_module_binding() {
+    let mut m = fixture_manifest();
+    m.module_bindings.insert(
+        "FetchExtract".into(),
+        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
+    );
+    let mut ir = fixture_plan_ir();
+    ir.imports.insert(
+        "FetchExtract".into(),
+        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
+    );
+    assert!(validate_seal(&m, &ir).is_ok());
 }

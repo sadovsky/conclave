@@ -21,6 +21,13 @@ pub fn normalize(mut module: Module) -> Result<Module, LangError> {
         });
     }
 
+    // Validate import hash format and sort imports.
+    for imp in &module.imports {
+        validate_import_hash(&imp.name, &imp.hash)?;
+    }
+    module.imports.sort_by(|a, b| a.name.cmp(&b.name));
+    check_no_duplicates(module.imports.iter().map(|i| i.name.as_str()), "import")?;
+
     // Rule 6: normalize signatures (before dedup checks so duplicates after
     // normalization are caught).
     for cap in &mut module.capabilities {
@@ -67,6 +74,21 @@ where
         if !seen.insert(name) {
             return Err(LangError::DuplicateDeclaration(format!("{kind}::{name}")));
         }
+    }
+    Ok(())
+}
+
+/// Validate that a hash is `sha256:` followed by exactly 64 lowercase hex chars.
+fn validate_import_hash(name: &str, hash: &str) -> Result<(), LangError> {
+    let hex = hash.strip_prefix("sha256:").ok_or_else(|| LangError::InvalidImportHash {
+        name: name.to_string(),
+        hash: hash.to_string(),
+    })?;
+    if hex.len() != 64 || !hex.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return Err(LangError::InvalidImportHash {
+            name: name.to_string(),
+            hash: hash.to_string(),
+        });
     }
     Ok(())
 }

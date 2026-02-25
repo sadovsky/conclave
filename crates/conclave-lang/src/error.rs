@@ -32,4 +32,29 @@ pub enum LangError {
 
     #[error("lowering requires url_count > 0 for map constructs")]
     MapRequiresUrlCount,
+
+    #[error("invalid import hash for '{name}': '{hash}' (must be sha256:<64 hex chars>)")]
+    InvalidImportHash { name: String, hash: String },
+
+    #[error("pure block contains capability '{0}': only intrinsics are allowed")]
+    PureBlockContainsCapability(String),
+
+    #[error("reduce body must end with '{0} = <expr>;' accumulator assignment")]
+    ReduceBodyMissingAssign(String),
+
+    #[error("goal '{0}' not found in module")]
+    GoalNotFound(String),
+
+    #[error("import '{0}' cannot be resolved: no module cache provided")]
+    ImportResolutionRequired(String),
+
+    #[error("imported module not found in cache: '{0}'")]
+    ImportNotFound(String),
+
+    #[error("arity mismatch calling '{fn_name}': expected {expected} argument(s), got {got}")]
+    ArityMismatch {
+        fn_name: String,
+        expected: usize,
+        got: usize,
+    },
 }

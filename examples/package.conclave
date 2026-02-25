@@ -1,0 +1,31 @@
+// package.conclave
+//
+// Conclave in Conclave: a goal that uses Conclave itself to lower
+// other Conclave source files.
+//
+// Each source file path is passed as a "URL" input.  The conclave_lower
+// capability shells out to `conclave lower` and returns the Plan IR JSON.
+// The results are assembled into a JSON array.
+//
+// This is not self-compilation — Conclave does not yet compile Rust.
+// But it is a real pipeline: Conclave running Conclave, deterministically,
+// with a content-addressed capability and a sealed manifest.
+
+version 0.1;
+
+capability conclave_lower: conclave_lower(String) -> Json;
+intrinsic assemble_json: assemble_json(List<Json>) -> Json;
+
+goal Package(source_files: List<String>) -> Json {
+  want {
+    map source_files as file {
+      emit conclave_lower(file);
+    }
+    return assemble_json(collected);
+  }
+  constraints {
+    determinism.mode == "sealed_replay";
+    rate_limit(conclave_lower) <= 4 req/s;
+    scheduler.max_inflight <= 2;
+  }
+}

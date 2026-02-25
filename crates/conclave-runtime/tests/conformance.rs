@@ -53,6 +53,7 @@ fn build_summarize_plan_ir() -> PlanIr {
                 url_index: url_idx,
             },
             constraints: vec![],
+            import_subgraph_id: None,
             meta: None,
         }
     }
@@ -191,6 +192,7 @@ fn build_summarize_plan_ir() -> PlanIr {
             source_fingerprint:
                 "sha256:0000000000000000000000000000000000000000000000000000000000000000".into(),
         },
+        imports: BTreeMap::new(),
         types: BTreeMap::new(),
         goals: vec![],
         nodes,

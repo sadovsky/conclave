@@ -29,6 +29,8 @@ enum Commands {
     Inspect(cmd::inspect::InspectArgs),
     /// Install a capability binary into the content-addressed store.
     InstallCap(cmd::install_cap::InstallCapArgs),
+    /// Manage the local module cache (publish, list, inspect).
+    Module(cmd::module::ModuleArgs),
 }
 
 fn main() {
@@ -41,6 +43,7 @@ fn main() {
         Commands::Run(args) => cmd::run::run(args),
         Commands::Inspect(args) => cmd::inspect::run(args),
         Commands::InstallCap(args) => cmd::install_cap::run(args),
+        Commands::Module(args) => cmd::module::run(args),
     };
     if let Err(e) = result {
         eprintln!("error: {e}");

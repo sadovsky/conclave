@@ -23,6 +23,7 @@ fn minimal_manifest() -> Manifest {
                 .into(),
         },
         capability_bindings: BTreeMap::new(),
+        module_bindings: BTreeMap::new(),
         scheduler_policy: SchedulerPolicy {
             strategy: "bounded_parallel_map".into(),
             max_inflight: 2,

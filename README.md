@@ -257,8 +257,10 @@ cargo test --workspace
 | 6 | Capability store, subprocess dispatch, Ed25519 | ✓ Complete |
 | 7 | Source language (`conclave-lang`) | ✓ Complete |
 | 8 | Chained capability inputs, agent-written capabilities | ✓ Complete |
+| 9 | Expanded DSL: `if/else`, `reduce`, `pure`, multi-goal | Planned (v0.2) |
+| 10 | Goal modules: `import`, subgraph expansion, module registry | Planned (v0.2) |
 
-See `docs/` for specifications and `blog/` for narrative explanations.
+See `docs/` for specifications and `blog/` for narrative explanations. The v0.2 plan is at [docs/V0.2_PLAN.md](docs/V0.2_PLAN.md).
 
 ---
 

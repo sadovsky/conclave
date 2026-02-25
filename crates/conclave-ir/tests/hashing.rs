@@ -9,6 +9,7 @@ fn minimal_ir() -> PlanIr {
             source_fingerprint:
                 "sha256:0000000000000000000000000000000000000000000000000000000000000000".into(),
         },
+        imports: BTreeMap::new(),
         types: BTreeMap::new(),
         goals: vec![],
         nodes: vec![],
@@ -63,6 +64,7 @@ fn plan_ir_hash_ignores_meta_field() {
             url_index: None,
         },
         constraints: vec![],
+        import_subgraph_id: None,
         meta: Some(serde_json::json!({"span": {"start": 0, "end": 100}, "origin": "test"})),
     });
 
@@ -82,6 +84,7 @@ fn plan_ir_hash_ignores_meta_field() {
             url_index: None,
         },
         constraints: vec![],
+        import_subgraph_id: None,
         meta: None,
     });
 
@@ -116,6 +119,7 @@ fn node_id_is_deterministic() {
             url_index: Some(0),
         },
         constraints: vec![],
+        import_subgraph_id: None,
         meta: None,
     };
     let id1 = compute_node_id(&node);
